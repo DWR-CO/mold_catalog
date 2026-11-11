@@ -1,0 +1,4888 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>公模册系统 (独立版)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --primary:#2563eb;--primary-dark:#1d4ed8;--primary-light:#dbeafe;
+  --accent:#f59e0b;--bg:#f1f5f9;--card:#fff;--text:#1e293b;--text2:#64748b;
+  --border:#e2e8f0;--success:#10b981;--danger:#ef4444;
+  --shadow:0 1px 3px rgba(0,0,0,.1),0 1px 2px rgba(0,0,0,.06);
+  --shadow-lg:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px rgba(0,0,0,.05);
+  --radius:8px;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);line-height:1.6;min-height:100vh}
+
+/* ===== Upload Zone ===== */
+.upload-zone{border:2px dashed #cbd5e1;border-radius:12px;padding:48px 24px;cursor:pointer;transition:all .3s;background:#f8fafc}
+.upload-zone:hover,.upload-zone.drag-over{border-color:var(--primary);background:var(--primary-light)}
+.upload-zone .icon{font-size:48px;margin-bottom:16px}
+.upload-zone p{color:var(--text2);font-size:14px}
+.upload-zone .formats{font-size:12px;color:#94a3b8;margin-top:8px}
+
+/* ===== Main App ===== */
+#main-app{display:block}
+.app-header{background:#fff;border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:var(--shadow)}
+.app-header h1{font-size:20px;font-weight:600}
+.header-actions{display:flex;gap:8px}
+
+/* ===== Layout ===== */
+.app-body{display:flex;height:calc(100vh - 57px)}
+.search-panel{width:340px;min-width:300px;background:#fff;border-right:1px solid var(--border);overflow-y:auto;padding:20px;flex-shrink:0}
+.results-panel{flex:1;overflow-y:auto;padding:24px}
+
+/* ===== Search Panel ===== */
+.panel-section{margin-bottom:24px}
+.panel-section h3{font-size:14px;font-weight:600;color:var(--text2);margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px}
+.condition-card{background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;position:relative;transition:all .2s}
+.condition-card:hover{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary)}
+.condition-row{display:flex;gap:6px;margin-bottom:6px}
+.condition-row select,.condition-row input{padding:6px 8px;border:1px solid var(--border);border-radius:4px;font-size:13px}
+.condition-row select{flex:1;min-width:0}
+.condition-row input{flex:1.5;min-width:0}
+.condition-remove{position:absolute;top:4px;right:4px;background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px;padding:2px 6px;border-radius:4px;opacity:0;transition:opacity .2s}
+.condition-card:hover .condition-remove{opacity:1}
+
+/* ===== Buttons ===== */
+.btn{padding:8px 16px;border-radius:6px;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:13px;font-weight:500;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{background:#f1f5f9}
+.btn-primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+.btn-primary:hover{background:var(--primary-dark)}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-block{width:100%;justify-content:center}
+.btn-accent{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-accent:hover{background:#d97706}
+
+/* ===== Image Search ===== */
+.image-drop-zone{border:2px dashed var(--border);border-radius:8px;padding:24px;text-align:center;cursor:pointer;transition:all .2s;background:#fafbfc}
+.image-drop-zone:hover{border-color:var(--primary);background:var(--primary-light)}
+.image-drop-zone .icon{font-size:32px;margin-bottom:8px}
+.image-drop-zone p{font-size:13px;color:var(--text2)}
+.image-preview-container{position:relative;margin-top:12px}
+.image-preview-container img{max-width:100%;max-height:200px;border-radius:8px;border:1px solid var(--border)}
+.image-preview-remove{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);color:#fff;border:none;width:24px;height:24px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
+.similarity-control{margin-top:12px}
+.similarity-control label{font-size:13px;color:var(--text2);display:block;margin-bottom:4px}
+.similarity-control input[type=range]{width:100%}
+.similarity-value{text-align:center;font-size:12px;color:var(--text2);margin-top:2px}
+
+/* ===== Results ===== */
+.results-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.results-header h2{font-size:18px}
+.results-count{color:var(--text2);font-size:14px}
+.results-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.result-card{background:#fff;border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;cursor:pointer;transition:all .2s}
+.result-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px);border-color:var(--primary)}
+.result-card .thumb{height:180px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+.result-card .thumb img{width:100%;height:100%;object-fit:contain}
+.result-card .thumb .no-image{color:#94a3b8;font-size:14px}
+.result-card .similarity-badge{position:absolute;top:8px;right:8px;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;color:#fff}
+.result-card .info{padding:12px}
+.result-card .info .title{font-weight:600;font-size:14px;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.result-card .info .field{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.result-card .info .field span{color:var(--text);font-weight:500}
+
+/* ===== Grouping ===== */
+.breadcrumb-nav{display:flex;align-items:center;padding:12px 16px;background:#fff;border-bottom:1px solid var(--border);margin-bottom:16px;border-radius:var(--radius) var(--radius) 0 0;flex-wrap:wrap;gap:4px}
+.breadcrumb-item{font-size:14px;color:var(--text2);cursor:pointer;padding:4px 8px;border-radius:4px;transition:all .2s}
+.breadcrumb-item:hover{background:var(--primary-light);color:var(--primary)}
+.breadcrumb-item.active{color:var(--text);font-weight:600;cursor:default}
+.breadcrumb-item.active:hover{background:transparent;color:var(--text)}
+.breadcrumb-separator{color:var(--text2);font-size:12px;margin:0 2px}
+
+.nav-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;padding:16px}
+.nav-card{background:#fff;border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;cursor:pointer;transition:all .2s}
+.nav-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px);border-color:var(--primary)}
+.nav-thumb{height:160px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.nav-thumb img{width:100%;height:100%;object-fit:contain}
+.nav-thumb.no-thumb{background:#f8fafc}
+.nav-icon{font-size:48px;opacity:.3}
+.nav-info{padding:12px;text-align:center}
+.nav-title{font-weight:600;font-size:15px;margin-bottom:4px;color:var(--text)}
+.nav-count{font-size:13px;color:var(--text2);background:var(--primary-light);color:var(--primary);display:inline-block;padding:2px 10px;border-radius:12px}
+
+.group-section{margin-bottom:16px;background:#fff;border-radius:var(--radius);border:1px solid var(--border);overflow:hidden}
+.group-header{display:flex;align-items:center;padding:12px 16px;background:#f8fafc;cursor:pointer;user-select:none;border-bottom:1px solid var(--border)}
+.group-header:hover{background:#f1f5f9}
+.group-toggle{margin-right:8px;font-size:12px;color:var(--text2);transition:transform .2s}
+.group-title{font-weight:600;font-size:15px;flex:1}
+.group-count{font-size:13px;color:var(--text2);background:var(--primary-light);color:var(--primary);padding:2px 10px;border-radius:12px}
+.group-content{padding:12px}
+
+.subgroup-section{margin-bottom:12px;background:#fafbfc;border-radius:6px;border:1px solid #e2e8f0;overflow:hidden}
+.subgroup-header{display:flex;align-items:center;padding:10px 14px;background:#f1f5f9;cursor:pointer;user-select:none;border-bottom:1px solid #e2e8f0}
+.subgroup-header:hover{background:#e2e8f0}
+.subgroup-toggle{margin-right:8px;font-size:11px;color:var(--text2)}
+.subgroup-title{font-weight:500;font-size:14px;flex:1;color:var(--text)}
+.subgroup-count{font-size:12px;color:var(--text2);background:#e2e8f0;padding:2px 8px;border-radius:10px}
+.subgroup-content{padding:10px}
+.subgroup-content .results-grid{grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+
+/* ===== Empty ===== */
+.empty-state{text-align:center;padding:80px 20px;color:var(--text2)}
+.empty-state .icon{font-size:64px;margin-bottom:16px;opacity:.5}
+.empty-state h3{font-size:20px;margin-bottom:8px;color:var(--text)}
+.empty-state p{font-size:14px}
+
+/* ===== Modal ===== */
+.modal-overlay{display:none;position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.active{display:flex}
+.modal{background:#fff;border-radius:12px;max-width:900px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 25px 50px rgba(0,0,0,.25)}
+.modal-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff;z-index:1;border-radius:12px 12px 0 0}
+.modal-header h2{font-size:20px}
+.modal-close{background:none;border:none;font-size:24px;cursor:pointer;color:var(--text2);padding:4px 8px;border-radius:4px}
+.modal-close:hover{background:#f1f5f9;color:var(--text)}
+.modal-body{padding:24px}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px}
+.detail-field{padding:12px;background:#f8fafc;border-radius:6px}
+.detail-field .label{font-size:12px;color:var(--text2);margin-bottom:2px}
+.detail-field .value{font-size:14px;font-weight:500;word-break:break-all}
+.detail-images{margin-top:16px}
+.detail-images h3{font-size:16px;margin-bottom:12px}
+.detail-images-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.detail-images-grid img{width:100%;border-radius:8px;border:1px solid var(--border);cursor:pointer;transition:transform .2s}
+.detail-images-grid img:hover{transform:scale(1.02)}
+
+/* ===== Image Viewer ===== */
+.image-viewer{display:none;position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(0,0,0,.9);z-index:2000;align-items:center;justify-content:center;cursor:pointer}
+.image-viewer.active{display:flex}
+.image-viewer img{max-width:95%;max-height:95%;object-fit:contain}
+
+/* ===== Loading ===== */
+.loading-overlay{display:none;position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(255,255,255,.8);z-index:3000;align-items:center;justify-content:center;flex-direction:column}
+.loading-overlay.active{display:flex}
+.spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{margin-top:16px;color:var(--text2);font-size:14px}
+
+/* ===== Toast ===== */
+.toast{position:fixed;bottom:20px;right:20px;padding:12px 20px;border-radius:8px;color:#fff;font-size:14px;z-index:4000;animation:slideIn .3s ease;box-shadow:var(--shadow-lg)}
+.toast.success{background:var(--success)}
+.toast.error{background:var(--danger)}
+.toast.info{background:var(--primary)}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* ===== Responsive ===== */
+@media(max-width:768px){
+  .app-body{flex-direction:column}
+  .search-panel{width:100%;min-width:0;border-right:none;border-bottom:1px solid var(--border);max-height:50vh}
+  .detail-grid{grid-template-columns:1fr}
+  .results-grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+}
+
+/* ===== Manage Mode ===== */
+.manage-bar{display:flex;align-items:center;justify-content:space-between;padding:10px 24px;background:#fef3c7;border-bottom:1px solid #fbbf24;position:sticky;top:57px;z-index:90}
+.manage-bar .info{font-size:13px;color:#92400e;font-weight:500}
+.manage-bar .actions{display:flex;gap:8px}
+.result-card.selected{border-color:var(--danger);background:#fef2f2}
+.result-card .card-check{position:absolute;top:8px;left:8px;z-index:10;width:22px;height:22px;cursor:pointer}
+.import-mode{margin-top:16px;padding:14px;background:#f8fafc;border-radius:8px;border:1px solid var(--border)}
+.import-mode-title{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px}
+.import-mode label{display:flex;align-items:flex-start;gap:8px;padding:6px 0;font-size:13px;color:var(--text);cursor:pointer}
+.import-mode label input{margin-top:2px}
+.import-mode .hint{font-size:11px;color:#94a3b8;margin-left:22px;margin-top:-2px}
+
+/* ===== Scrollbar ===== */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:#94a3b8}
+
+/* ===== GitHub Sync Badge ===== */
+.sync-badge{display:flex;align-items:center;gap:6px;background:#f1f5f9;padding:6px 12px;border-radius:16px;font-size:12px;font-weight:500;color:var(--text2);cursor:pointer;transition:all .2s;border:1px solid var(--border)}
+.sync-badge:hover{background:var(--primary-light);border-color:var(--primary);color:var(--primary)}
+.sync-badge.syncing{animation:pulse-sync 1.5s infinite}
+.sync-badge.error{background:#fef2f2;border-color:var(--danger);color:var(--danger)}
+@keyframes pulse-sync{0%,100%{opacity:1}50%{opacity:.6}}
+.sync-icon{font-size:14px}
+.sync-icon.rotating{animation:rotate 1s linear infinite}
+@keyframes rotate{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+
+/* ===== GitHub Config Modal ===== */
+.github-config-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:5000;align-items:center;justify-content:center}
+.github-config-modal.show{display:flex}
+.github-config-content{background:#fff;border-radius:12px;padding:28px;max-width:460px;width:90%;box-shadow:0 25px 50px rgba(0,0,0,.25)}
+.github-config-content h3{font-size:18px;font-weight:600;margin-bottom:18px;color:var(--text);display:flex;align-items:center;gap:8px}
+.github-config-content label{display:block;font-size:13px;font-weight:500;margin-bottom:6px;color:var(--text)}
+.github-config-content input{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;margin-bottom:12px;box-sizing:border-box}
+.github-config-content input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.github-config-content .hint{font-size:11px;color:var(--text2);margin-top:-8px;margin-bottom:12px}
+.github-config-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+.github-config-actions button{padding:8px 16px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s}
+.github-config-actions .btn-cancel{background:#fff;border:1px solid var(--border);color:var(--text)}
+.github-config-actions .btn-cancel:hover{background:#f1f5f9}
+.github-config-actions .btn-disconnect{background:#fff;border:1px solid var(--danger);color:var(--danger);margin-right:auto}
+.github-config-actions .btn-disconnect:hover{background:#fef2f2}
+.github-config-actions .btn-save{background:var(--primary);border:1px solid var(--primary);color:#fff}
+.github-config-actions .btn-save:hover{background:var(--primary-dark)}
+
+/* ===== Edit Modal ===== */
+.edit-field-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.edit-field-row label{width:120px;font-size:13px;font-weight:500;color:var(--text2);flex-shrink:0;text-align:right}
+.edit-field-row input,.edit-field-row select{flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px}
+.edit-field-row input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.edit-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
+
+</style>
+</head>
+<body>
+
+<!-- ==================== Main Application ==================== -->
+<div id="main-app">
+  <div class="app-header">
+    <h1>&#128209; 公模册系统 <small style="font-size:12px;color:var(--text2);font-weight:normal">(独立版)</small></h1>
+    <div class="header-actions">
+      <div class="sync-badge" id="syncBadge" onclick="showGitHubConfig()" title="点击配置GitHub同步">
+        <span class="sync-icon" id="syncIcon">&#128259;</span>
+        <span id="syncStatus">未配置</span>
+      </div>
+      <button class="btn btn-sm" onclick="app.showPasswordModal()">&#128274; 数据维护</button>
+    </div>
+  </div>
+  <div class="app-body">
+    <!-- Search Panel -->
+    <div class="search-panel">
+      <div class="panel-section">
+        <h3>&#128269; 多字段搜索</h3>
+        <div id="searchConditions"></div>
+        <button class="btn btn-sm btn-block" onclick="app.addCondition()" style="margin-top:8px">+ 添加搜索条件</button>
+        <button class="btn btn-primary btn-block" onclick="app.executeSearch()" style="margin-top:8px">&#128269; 搜索</button>
+        <button class="btn btn-block" onclick="app.clearSearch()" style="margin-top:4px">清除全部</button>
+      </div>
+      <div class="panel-section">
+        <h3>&#128444;&#65039; 以图搜图</h3>
+        <div class="image-drop-zone" id="imageDropZone">
+          <div class="icon">&#128247;</div>
+          <p>上传图纸进行相似匹配</p>
+          <p style="font-size:12px;color:#94a3b8;margin-top:4px">支持 PNG / JPG / BMP</p>
+        </div>
+        <input type="file" id="imageInput" accept="image/*" style="display:none">
+        <div id="imagePreviewArea"></div>
+        <div class="similarity-control" id="similarityControl" style="display:none">
+          <label>相似度阈值</label>
+          <input type="range" id="similarityThreshold" min="0" max="100" value="50" oninput="app.updateThresholdLabel()">
+          <div class="similarity-value" id="thresholdLabel">相似度 ≥ 50%</div>
+        </div>
+        <button class="btn btn-accent btn-block" id="searchByImageBtn" style="display:none;margin-top:8px" onclick="app.executeSearch()">&#128444;&#65039; 以图搜图</button>
+      </div>
+    </div>
+    <!-- Results Panel -->
+    <div class="results-panel" id="resultsPanel">
+      <div class="results-header" id="resultsHeader" style="display:none">
+        <h2>搜索结果</h2>
+        <span class="results-count" id="resultsCount"></span>
+      </div>
+      <div id="resultsContent">
+        <div class="empty-state">
+          <div class="icon">&#128270;</div>
+          <h3>开始检索</h3>
+          <p>在左侧添加搜索条件或上传图纸进行检索</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Detail Modal ==================== -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalTitle">模具详情</h2>
+      <button class="modal-close" onclick="app.closeModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<!-- ==================== Image Viewer ==================== -->
+<div class="image-viewer" id="imageViewer" onclick="app.closeImageViewer()">
+  <img id="viewerImage" src="">
+</div>
+
+<!-- ==================== Password Modal ==================== -->
+<div class="modal-overlay" id="passwordModal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h2>&#128274; 数据维护</h2>
+      <button class="modal-close" onclick="app.closePasswordModal()">&times;</button>
+    </div>
+    <div class="modal-body" style="text-align:center">
+      <p style="color:var(--text2);margin-bottom:20px;font-size:14px">请输入维护密码以导入数据</p>
+      <input type="password" id="passwordInput" placeholder="请输入密码" style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:6px;font-size:15px;margin-bottom:16px;box-sizing:border-box" onkeydown="if(event.key==='Enter')app.verifyPassword()">
+      <div id="passwordError" style="color:var(--danger);font-size:13px;margin-bottom:12px;display:none">密码错误，请重试</div>
+      <div style="display:flex;gap:10px;justify-content:center">
+        <button class="btn" onclick="app.closePasswordModal()">取消</button>
+        <button class="btn btn-primary" onclick="app.verifyPassword()">确认</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Maintenance Panel ==================== -->
+<div class="modal-overlay" id="maintenanceModal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h2>&#128274; 数据维护</h2>
+      <button class="modal-close" onclick="app.closeMaintenanceModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <button class="btn btn-primary" onclick="app.closeMaintenanceModal();app.showUploadModal()" style="width:100%;padding:14px;font-size:15px">
+          &#128196; 导入数据
+        </button>
+        <button class="btn btn-accent" id="maintExportBtn" onclick="app.closeMaintenanceModal();app.exportToExcel()" style="width:100%;padding:14px;font-size:15px;display:none">
+          &#128229; 导出Excel
+        </button>
+        <button class="btn" id="maintManageBtn" onclick="app.closeMaintenanceModal();app.toggleManageMode()" style="width:100%;padding:14px;font-size:15px;display:none">
+          &#9999;&#65039; 管理数据
+        </button>
+        <button class="btn" id="maintClearBtn" onclick="app.closeMaintenanceModal();app.clearData()" style="width:100%;padding:14px;font-size:15px;display:none">
+          &#128465; 清除数据
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== File Upload Modal ==================== -->
+<div class="modal-overlay" id="uploadModal">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <h2>&#128196; 导入数据</h2>
+      <button class="modal-close" onclick="app.closeUploadModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="upload-zone" id="uploadZone" style="padding:32px 24px">
+        <div class="icon" style="font-size:40px">&#128196;</div>
+        <p><strong>点击上传</strong> 或拖拽文件到此处</p>
+        <p class="formats">支持 .xlsx / .xls / .pdf 格式</p>
+      </div>
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.pdf" style="display:none">
+      <div class="import-mode" id="importModeSection" style="display:none">
+        <div class="import-mode-title">导入方式</div>
+        <label><input type="radio" name="importMode" value="append" checked> <strong>追加数据</strong> — 新数据添加到现有记录之后</label>
+        <div class="hint">适合分批导入不同来源的数据</div>
+        <label style="margin-top:4px"><input type="radio" name="importMode" value="replace"> <strong>替换数据</strong> — 清除现有数据，导入新数据</label>
+        <div class="hint">当前已有 <span id="existingDataCount">0</span> 条记录</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Loading ==================== -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">处理中...</div>
+</div>
+
+<!-- ==================== GitHub Sync Config Modal ==================== -->
+<div class="github-config-modal" id="githubConfigModal">
+  <div class="github-config-content">
+    <h3>&#128279; GitHub 同步配置</h3>
+    <label>GitHub 仓库</label>
+    <input type="text" id="githubRepo" placeholder="例如：DWR-CO/mold_catalog">
+    <div class="hint">格式：用户名/仓库名，仓库需要是Public</div>
+    
+    <label>Personal Access Token</label>
+    <input type="password" id="githubToken" placeholder="ghp_xxxxxxxxxxxx">
+    <div class="hint">在 GitHub Settings → Developer settings → Personal access tokens 创建，需要 repo 权限</div>
+    
+    <label>分支</label>
+    <input type="text" id="githubBranch" placeholder="main" value="main">
+    <div class="hint">数据文件将存储在指定分支的 data.json 中</div>
+    
+    <div class="github-config-actions">
+      <button class="btn-disconnect" onclick="disconnectGitHub()" style="display:none" id="githubDisconnectBtn">断开连接</button>
+      <button class="btn-cancel" onclick="closeGitHubConfig()">取消</button>
+      <button class="btn-save" onclick="saveGitHubConfig()">保存并同步</button>
+    </div>
+    <div class="github-config-actions" style="margin-top:10px">
+      <button class="btn-cancel" onclick="manualPullFromGitHub()" id="githubPullBtn" style="display:none">拉取远程数据</button>
+      <button class="btn-cancel" onclick="restoreLocalBackup()" id="githubRestoreBtn" style="display:none">恢复上次备份</button>
+      <button class="btn-cancel" onclick="rebindExpectedRepo()">换绑标准仓库</button>
+    </div>
+    <div class="hint" id="expectedRepoHint" style="margin-top:8px"></div>
+  </div>
+</div>
+
+<!-- ==================== Edit Modal ==================== -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header">
+      <h2 id="editModalTitle">编辑记录</h2>
+      <button class="modal-close" onclick="app.closeEditModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="editModalBody">
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================================================================
+   公模册系统 - 核心逻辑
+   ================================================================ */
+
+class MoldCatalogApp {
+  constructor() {
+    this.state = {
+      rawData: [],
+      headers: [],
+      rowImages: {},       // { dataIdx: [dataURL, ...] }
+      imageHashes: {},     // { dataIdx: [[pHash,aHash,dHash], ...] } per image
+      columnMapping: {},   // { name: 'colName', category: 'colName', ... }
+      specialColumns: {},  // { name: 'colName' } — 标记为"名称"的列
+      searchConditions: [],
+      queryImageHashes: null, // [pHash, aHash, dHash, colorHist, edgeHist, gradientHist, ssimFeatures] for query image
+      querySelfSimilarity: null, // self-similarity baseline for score normalization
+      conditionIdCounter: 0,
+      maxResults: 200,
+      manageMode: false,
+      selectedForDelete: {},
+      // Navigation state for hierarchical browsing
+      navPath: [],         // [{level: 'category', value: '霜膏瓶'}, {level: 'capacity', value: '30G'}, ...]
+      navLevel: 0          // 0=category, 1=capacity, 2=material, 3=products
+    };
+
+    // Client-side database state (sql.js + IndexedDB)
+    this.SQL = null;           // sql.js module
+    this.db = null;            // sql.js Database instance
+    this.passwordVerified = false;  // Whether maintenance password has been verified
+    this._dbReady = false;     // Whether database has been initialized
+    this._pendingFile = null;  // Pending file for import after password verification
+
+    this._initDB();
+    this.initEvents();
+  }
+
+  /* ========== Client-side Database (sql.js + IndexedDB) ========== */
+  async _initDB() {
+    try {
+      this.showLoading('正在初始化数据库...');
+      this.SQL = await initSqlJs({
+        locateFile: function(f) {
+          return 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/' + f;
+        }
+      });
+
+      // Try to load existing database from IndexedDB
+      var savedBuffer = await this._loadFromIndexedDB();
+      if (savedBuffer) {
+        this.db = new this.SQL.Database(savedBuffer);
+        console.log('已从IndexedDB加载数据库');
+      } else {
+        this.db = new this.SQL.Database();
+        // Create tables
+        this.db.run('CREATE TABLE IF NOT EXISTS records (id INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT, images TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
+        this.db.run('CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT)');
+        await this._saveToIndexedDB();
+        console.log('已创建新数据库');
+      }
+
+      // Ensure tables exist (for databases created before config table was added)
+      try {
+        this.db.run('CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT)');
+      } catch(e) { /* ignore */ }
+
+      this._dbReady = true;
+      this._loadConfig();
+      await this._loadFromDB();
+      this.hideLoading();
+    } catch (e) {
+      this.hideLoading();
+      console.error('数据库初始化失败:', e);
+      this.toast('数据库初始化失败: ' + e.message, 'error');
+    }
+  }
+
+  async _loadFromDB() {
+    try {
+      var result = this.db.exec('SELECT * FROM records ORDER BY id');
+      var records = [];
+
+      if (result.length > 0) {
+        var columns = result[0].columns;
+        for (var i = 0; i < result[0].values.length; i++) {
+          var row = result[0].values[i];
+          var record = {};
+          columns.forEach(function(col, j) { record[col] = row[j]; });
+
+          try { record.data = JSON.parse(record.data); } catch(e) { record.data = {}; }
+          try {
+            record.images = JSON.parse(record.images);
+            if (!Array.isArray(record.images)) record.images = [];
+          } catch(e) { record.images = []; }
+
+          records.push(record);
+        }
+      }
+
+      // Reconstruct state from database records
+      this.state.rawData = [];
+      this.state.headers = [];
+      this.state.rowImages = {};
+      this.state.imageHashes = {};
+
+      var headersSet = {};
+      for (var i = 0; i < records.length; i++) {
+        var data = records[i].data || {};
+        this.state.rawData.push(data);
+
+        for (var key in data) { headersSet[key] = true; }
+
+        if (records[i].images && records[i].images.length > 0) {
+          this.state.rowImages[String(i)] = records[i].images.map(function(img) {
+            if (typeof img === 'string') return img;
+            if (img && img.dataUrl) return img.dataUrl;
+            return null;
+          }).filter(function(url) { return url !== null; });
+        }
+      }
+
+      this.state.headers = Object.keys(headersSet);
+
+      // Compute hashes for all images
+      if (Object.keys(this.state.rowImages).length > 0) {
+        await this.computeAllHashes();
+      }
+
+      this.enterMainApp();
+      this.renderConditions();
+      console.log('已从数据库加载 ' + records.length + ' 条记录');
+    } catch (e) {
+      console.warn('数据库加载失败:', e.message);
+      this.enterMainApp();
+    }
+  }
+
+  async _saveToDB(mode) {
+    if (!this.db) return;
+
+    try {
+      // Full rebuild: delete all records and re-insert from current state
+      this.db.run('DELETE FROM records');
+
+      for (var i = 0; i < this.state.rawData.length; i++) {
+        var dataStr = JSON.stringify(this.state.rawData[i]);
+        var images = this.state.rowImages[String(i)] || [];
+        var validImages = [];
+        for (var j = 0; j < images.length; j++) {
+          if (images[j] && images[j].startsWith('data:')) {
+            validImages.push(images[j]);
+          }
+        }
+        var imagesStr = JSON.stringify(validImages);
+        this.db.run('INSERT INTO records (data, images) VALUES (?, ?)', [dataStr, imagesStr]);
+      }
+
+      // Save config
+      this._saveConfig();
+
+      // Persist to IndexedDB
+      await this._saveToIndexedDB();
+      console.log('已保存到数据库, ' + this.state.rawData.length + ' 条记录, mode=' + mode);
+    } catch (e) {
+      console.error('保存数据库失败:', e.message);
+      this.toast('保存数据失败: ' + e.message, 'error');
+    }
+  }
+
+  async _deleteFromDB(ids) {
+    // Since _saveToDB does a full rebuild from current state,
+    // we just need to save after the state has been updated
+    await this._saveToDB('delete');
+  }
+
+  async _clearDB(clearConfig) {
+    if (!this.db) return;
+    try {
+      this.db.run('DELETE FROM records');
+      if (clearConfig) {
+        this.db.run('DELETE FROM config');
+      }
+      await this._saveToIndexedDB();
+      console.log('已清空数据库');
+    } catch (e) {
+      console.error('清空数据库失败:', e.message);
+    }
+  }
+
+  _loadConfig() {
+    try {
+      var result = this.db.exec('SELECT key, value FROM config');
+      if (result.length > 0) {
+        for (var i = 0; i < result[0].values.length; i++) {
+          var key = result[0].values[i][0];
+          var val = result[0].values[i][1];
+          try {
+            if (key === 'columnMapping') this.state.columnMapping = JSON.parse(val);
+            else if (key === 'specialColumns') this.state.specialColumns = JSON.parse(val);
+          } catch(e) { /* ignore parse errors */ }
+        }
+      }
+    } catch (e) {
+      console.warn('加载配置失败:', e.message);
+    }
+  }
+
+  _saveConfig() {
+    try {
+      this.db.run("DELETE FROM config WHERE key IN ('columnMapping','specialColumns')");
+      this.db.run('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)',
+        ['columnMapping', JSON.stringify(this.state.columnMapping)]);
+      this.db.run('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)',
+        ['specialColumns', JSON.stringify(this.state.specialColumns)]);
+    } catch (e) {
+      console.warn('保存配置失败:', e.message);
+    }
+  }
+
+  async _saveToIndexedDB() {
+    try {
+      var data = this.db.export();
+      // Make a copy of the buffer to avoid shared memory issues
+      var buffer = new Uint8Array(data).slice(0);
+      var request = indexedDB.open('MoldCatalogDB', 1);
+      return new Promise(function(resolve, reject) {
+        request.onupgradeneeded = function(event) {
+          var idb = event.target.result;
+          if (!idb.objectStoreNames.contains('database')) {
+            idb.createObjectStore('database');
+          }
+        };
+        request.onsuccess = function(event) {
+          var idb = event.target.result;
+          try {
+            var tx = idb.transaction(['database'], 'readwrite');
+            var store = tx.objectStore('database');
+            store.put(buffer, 'main');
+            tx.oncomplete = function() { idb.close(); resolve(); };
+            tx.onerror = function() { idb.close(); reject(tx.error); };
+          } catch(e) {
+            idb.close();
+            reject(e);
+          }
+        };
+        request.onerror = function() { reject(request.error); };
+      });
+    } catch (e) {
+      console.error('保存到IndexedDB失败:', e.message);
+    }
+  }
+
+  async _loadFromIndexedDB() {
+    try {
+      var request = indexedDB.open('MoldCatalogDB', 1);
+      var result = await new Promise(function(resolve, reject) {
+        request.onupgradeneeded = function(event) {
+          var idb = event.target.result;
+          if (!idb.objectStoreNames.contains('database')) {
+            idb.createObjectStore('database');
+          }
+        };
+        request.onsuccess = function(event) {
+          var idb = event.target.result;
+          try {
+            var tx = idb.transaction(['database'], 'readonly');
+            var store = tx.objectStore('database');
+            var getReq = store.get('main');
+            getReq.onsuccess = function() { idb.close(); resolve(getReq.result); };
+            getReq.onerror = function() { idb.close(); resolve(null); };
+          } catch(e) {
+            idb.close();
+            resolve(null);
+          }
+        };
+        request.onerror = function() { resolve(null); };
+      });
+      return result || null;
+    } catch (e) {
+      console.warn('从IndexedDB加载失败:', e.message);
+      return null;
+    }
+  }
+
+  /* ========== Password Verification ========== */
+  async _verifyPassword(password) {
+    // Simple password check against the maintenance password
+    return password === 'PECHOIN1931';
+  }
+
+  /* ========== Utilities ========== */
+  esc(s) {
+    if (s == null) return '';
+    const d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML;
+  }
+
+  norm(v) { return (v == null ? '' : String(v)).trim().toLowerCase(); }
+
+  showLoading(t) {
+    document.getElementById('loadingText').textContent = t || '处理中...';
+    document.getElementById('loadingOverlay').classList.add('active');
+  }
+  hideLoading() { document.getElementById('loadingOverlay').classList.remove('active'); }
+
+  toast(msg, type) {
+    type = type || 'info';
+    const el = document.createElement('div');
+    el.className = 'toast ' + type;
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(function() { el.remove(); }, 3000);
+  }
+
+  /* ========== Perceptual Hash (pHash) - Improved ========== */
+  computePHash(dataUrl) {
+    var self = this;
+    return new Promise(function(resolve) {
+      var img = new Image();
+      img.onload = function() {
+        // Use 64x64 for better feature extraction
+        var c = document.createElement('canvas');
+        c.width = 64; c.height = 64;
+        var ctx = c.getContext('2d');
+        ctx.drawImage(img, 0, 0, 64, 64);
+        var data = ctx.getImageData(0, 0, 64, 64).data;
+
+        // Grayscale with better color space conversion
+        var gray = [];
+        for (var i = 0; i < 64; i++) {
+          gray[i] = [];
+          for (var j = 0; j < 64; j++) {
+            var idx = (i * 64 + j) * 4;
+            // Use Rec. 709 luma coefficients for better perceptual accuracy
+            gray[i][j] = (data[idx] * 0.2126 + data[idx+1] * 0.7152 + data[idx+2] * 0.0722) / 255;
+          }
+        }
+
+        // Apply DCT to get 16x16 low-frequency block (higher resolution)
+        var dctSize = 16;
+        var dct = [];
+        for (var u = 0; u < dctSize; u++) {
+          dct[u] = [];
+          for (var v = 0; v < dctSize; v++) {
+            var sum = 0;
+            for (var i = 0; i < 64; i++) {
+              for (var j = 0; j < 64; j++) {
+                sum += gray[i][j]
+                  * Math.cos(Math.PI * (2*i+1) * u / 128)
+                  * Math.cos(Math.PI * (2*j+1) * v / 128);
+              }
+            }
+            dct[u][v] = sum / 8;
+          }
+        }
+
+        // Compute mean of AC components (skip DC at [0][0])
+        var acSum = 0;
+        var acCount = 0;
+        for (var u = 0; u < dctSize; u++) {
+          for (var v = 0; v < dctSize; v++) {
+            if (u === 0 && v === 0) continue;
+            acSum += dct[u][v];
+            acCount++;
+          }
+        }
+        var mean = acSum / acCount;
+
+        // Build 256-bit hash (store as array of 4x 64-bit values for better precision)
+        var hash = [0n, 0n, 0n, 0n];
+        var bitIdx = 0;
+        for (var u = 0; u < dctSize; u++) {
+          for (var v = 0; v < dctSize; v++) {
+            var arrIdx = Math.floor(bitIdx / 64);
+            var bitPos = bitIdx % 64;
+            if (dct[u][v] >= mean) {
+              hash[arrIdx] |= (1n << BigInt(63 - bitPos));
+            }
+            bitIdx++;
+          }
+        }
+        resolve(hash);
+      };
+      img.onerror = function() { resolve(null); };
+      img.src = dataUrl;
+    });
+  }
+
+  hammingDist(h1, h2) {
+    if (h1 == null || h2 == null) return 256;
+    
+    // Handle array-based hashes (256-bit)
+    if (Array.isArray(h1) && Array.isArray(h2)) {
+      var totalDist = 0;
+      for (var i = 0; i < h1.length; i++) {
+        var xor = h1[i] ^ h2[i];
+        while (xor > 0n) {
+          totalDist += Number(xor & 1n);
+          xor >>= 1n;
+        }
+      }
+      return totalDist;
+    }
+    
+    // Handle single 64-bit hashes (legacy)
+    var xor = h1 ^ h2;
+    var dist = 0;
+    while (xor > 0n) {
+      dist += Number(xor & 1n);
+      xor >>= 1n;
+    }
+    return dist;
+  }
+
+  /* ========== Average Hash (aHash) - Improved ========== */
+  computeAHash(dataUrl) {
+    var self = this;
+    return new Promise(function(resolve) {
+      var img = new Image();
+      img.onload = function() {
+        // Use 16x16 for better feature extraction
+        var c = document.createElement('canvas');
+        c.width = 16; c.height = 16;
+        var ctx = c.getContext('2d');
+        ctx.drawImage(img, 0, 0, 16, 16);
+        var data = ctx.getImageData(0, 0, 16, 16).data;
+
+        // Grayscale and compute mean with Rec. 709 coefficients
+        var gray = [];
+        var sum = 0;
+        for (var i = 0; i < 256; i++) {
+          var g = (data[i*4] * 0.2126 + data[i*4+1] * 0.7152 + data[i*4+2] * 0.0722) / 255;
+          gray.push(g);
+          sum += g;
+        }
+        var mean = sum / 256;
+
+        // Build 256-bit hash (store as array of 4x 64-bit values)
+        var hash = [0n, 0n, 0n, 0n];
+        for (var i = 0; i < 256; i++) {
+          var arrIdx = Math.floor(i / 64);
+          var bitPos = i % 64;
+          if (gray[i] >= mean) {
+            hash[arrIdx] |= (1n << BigInt(63 - bitPos));
+          }
+        }
+        resolve(hash);
+      };
+      img.onerror = function() { resolve(null); };
+      img.src = dataUrl;
+    });
+  }
+
+  /* ========== Difference Hash (dHash) - Improved ========== */
+  computeDHash(dataUrl) {
+    var self = this;
+    return new Promise(function(resolve) {
+      var img = new Image();
+      img.onload = function() {
+        // Use 17x16 for better feature extraction (9x8 was too low)
+        var c = document.createElement('canvas');
+        c.width = 17; c.height = 16;
+        var ctx = c.getContext('2d');
+        ctx.drawImage(img, 0, 0, 17, 16);
+        var data = ctx.getImageData(0, 0, 17, 16).data;
+
+        // Grayscale 17x16 → compare adjacent pixels with Rec. 709 coefficients
+        var gray = [];
+        for (var i = 0; i < 16; i++) {
+          gray[i] = [];
+          for (var j = 0; j < 17; j++) {
+            var idx = (i * 17 + j) * 4;
+            gray[i][j] = data[idx] * 0.2126 + data[idx+1] * 0.7152 + data[idx+2] * 0.0722;
+          }
+        }
+
+        // Build 256-bit hash from horizontal and vertical differences
+        var hash = [0n, 0n, 0n, 0n];
+        var bitIdx = 0;
+        
+        // Horizontal differences
+        for (var i = 0; i < 16; i++) {
+          for (var j = 0; j < 16; j++) {
+            var arrIdx = Math.floor(bitIdx / 64);
+            var bitPos = bitIdx % 64;
+            if (gray[i][j] < gray[i][j+1]) {
+              hash[arrIdx] |= (1n << BigInt(63 - bitPos));
+            }
+            bitIdx++;
+          }
+        }
+        
+        resolve(hash);
+      };
+      img.onerror = function() { resolve(null); };
+      img.src = dataUrl;
+    });
+  }
+
+  /* ========== Combined Image Similarity - Improved ========== */
+  // Compute all features for a single image
+  // Returns [pHash, aHash, dHash, colorHist, edgeHist, gradientHist, ssimFeatures]
+  computeImageHashes(dataUrl) {
+    var self = this;
+    return Promise.all([
+      this.computePHash(dataUrl),
+      this.computeAHash(dataUrl),
+      this.computeDHash(dataUrl),
+      this.computeColorHistogram(dataUrl),
+      this.computeEdgeHistogram(dataUrl),
+      this.computeGradientHistogram(dataUrl),
+      this.computeSSIMFeatures(dataUrl)
+    ]).then(function(results) {
+      return results;
+    });
+  }
+
+  // Multi-crop comparison: compute features for multiple regions and return best score
+  // This handles cases where query is a cropped/zoomed version of target
+  // (e.g., query=1 bottle, target=2 bottles side by side)
+  computeMultiCropSimilarity(queryHashes, targetDataUrl) {
+    var self = this;
+    return new Promise(function(resolve) {
+      var img = new Image();
+      img.onload = function() {
+        var crops = self.generateCrops(img);
+        var promises = crops.map(function(cropDataUrl) {
+          return self.computeImageHashes(cropDataUrl);
+        });
+        Promise.all(promises).then(function(cropHashesList) {
+          var bestScore = 0;
+          for (var i = 0; i < cropHashesList.length; i++) {
+            var score = self.combinedSimilarity(queryHashes, cropHashesList[i]);
+            // Normalize by query self-similarity if available
+            if (self.state.querySelfSimilarity > 0) {
+              score = (score / self.state.querySelfSimilarity) * 100;
+            }
+            if (score > bestScore) bestScore = score;
+          }
+          resolve(bestScore);
+        });
+      };
+      img.onerror = function() { resolve(0); };
+      img.src = targetDataUrl;
+    });
+  }
+
+  // Generate multiple crops from an image for multi-region comparison
+  generateCrops(img) {
+    var crops = [];
+    var w = img.naturalWidth || img.width;
+    var h = img.naturalHeight || img.height;
+    
+    // Define crop regions: [x_ratio, y_ratio, width_ratio, height_ratio]
+    var regions = [
+      [0, 0, 1, 1],       // Full image
+      [0, 0, 0.55, 1],    // Left half (slightly more than half)
+      [0.45, 0, 0.55, 1], // Right half
+      [0.2, 0, 0.6, 1],   // Center 60%
+      [0.1, 0.1, 0.8, 0.8], // Center 80% with margin
+      [0, 0, 1, 0.6],     // Top 60%
+      [0, 0.4, 1, 0.6]    // Bottom 60%
+    ];
+    
+    for (var i = 0; i < regions.length; i++) {
+      var r = regions[i];
+      var c = document.createElement('canvas');
+      c.width = 64; c.height = 64;
+      var ctx = c.getContext('2d');
+      var sx = Math.floor(w * r[0]);
+      var sy = Math.floor(h * r[1]);
+      var sw = Math.floor(w * r[2]);
+      var sh = Math.floor(h * r[3]);
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, 64, 64);
+      crops.push(c.toDataURL('image/png'));
+    }
+    
+    return crops;
+  }
+
+  // Compute SSIM-like structural features (local statistics)
+  // Divides image into 4x4 blocks and computes mean/variance per block
+  computeSSIMFeatures(dataUrl) {
+    var self = this;
+    return new Promise(function(resolve) {
+      var img = new Image();
+      img.onload = function() {
+        var c = document.createElement('canvas');
+        c.width = 64; c.height = 64;
+        var ctx = c.getContext('2d');
+        ctx.drawImage(img, 0, 0, 64, 64);
+        var data = ctx.getImageData(0, 0, 64, 64).data;
+        
+        // Convert to grayscale
+        var gray = new Float32Array(64 * 64);
+        for (var i = 0; i < 4096; i++) {
+          gray[i] = (data[i*4] * 0.299 + data[i*4+1] * 0.587 + data[i*4+2] * 0.114) / 255;
+        }
+        
+        // Compute local statistics in 4x4 grid (16 blocks)
+        var features = [];
+        var blockSize = 16;
+        
+        for (var by = 0; by < 4; by++) {
+          for (var bx = 0; bx < 4; bx++) {
+            var sum = 0;
+            var sumSq = 0;
+            var count = 0;
+            
+            for (var y = by * blockSize; y < (by+1) * blockSize; y++) {
+              for (var x = bx * blockSize; x < (bx+1) * blockSize; x++) {
+                var val = gray[y*64 + x];
+                sum += val;
+                sumSq += val * val;
+                count++;
+              }
+            }
+            
+            var mean = sum / count;
+            var variance = (sumSq / count) - (mean * mean);
+            
+            features.push(mean);
+            features.push(Math.sqrt(Math.max(0, variance)));
+          }
+        }
+        
+        // Normalize means and variances separately
+        var means = [];
+        var vars = [];
+        for (var i = 0; i < 16; i++) {
+          means.push(features[i*2]);
+          vars.push(features[i*2+1]);
+        }
+        
+        var meanSum = means.reduce(function(a,b) { return a+b; }, 0);
+        var varSum = vars.reduce(function(a,b) { return a+b; }, 0);
+        
+        if (meanSum > 0) {
+          for (var i = 0; i < 16; i++) means[i] /= meanSum;
+        }
+        if (varSum > 0) {
+          for (var i = 0; i < 16; i++) vars[i] /= varSum;
+        }
+        
+        // Interleave normalized values
+        var normalized = [];
+        for (var i = 0; i < 16; i++) {
+          normalized.push(means[i]);
+          normalized.push(vars[i]);
+        }
+        
+        resolve(normalized);
+      };
+      img.onerror = function() { resolve(null); };
+      img.src = dataUrl;
+    });
+  }
+
+  // Compute edge density histogram (focuses on shape contours)
+  // Divides image into 4x4 grid and computes edge density per cell
+  computeEdgeHistogram(dataUrl) {
+    var self = this;
+    return new Promise(function(resolve) {
+      var img = new Image();
+      img.onload = function() {
+        var c = document.createElement('canvas');
+        c.width = 64; c.height = 64;
+        var ctx = c.getContext('2d');
+        ctx.drawImage(img, 0, 0, 64, 64);
+        var data = ctx.getImageData(0, 0, 64, 64).data;
+        
+        // Convert to grayscale
+        var gray = new Float32Array(64 * 64);
+        for (var i = 0; i < 4096; i++) {
+          gray[i] = data[i*4] * 0.299 + data[i*4+1] * 0.587 + data[i*4+2] * 0.114;
+        }
+        
+        // Sobel edge detection
+        var edgeMap = new Float32Array(64 * 64);
+        for (var y = 1; y < 63; y++) {
+          for (var x = 1; x < 63; x++) {
+            var gx = 
+              -gray[(y-1)*64 + (x-1)] + gray[(y-1)*64 + (x+1)] +
+              -2*gray[y*64 + (x-1)] + 2*gray[y*64 + (x+1)] +
+              -gray[(y+1)*64 + (x-1)] + gray[(y+1)*64 + (x+1)];
+            
+            var gy = 
+              -gray[(y-1)*64 + (x-1)] - 2*gray[(y-1)*64 + x] - gray[(y-1)*64 + (x+1)] +
+              gray[(y+1)*64 + (x-1)] + 2*gray[(y+1)*64 + x] + gray[(y+1)*64 + (x+1)];
+            
+            edgeMap[y*64 + x] = Math.sqrt(gx*gx + gy*gy);
+          }
+        }
+        
+        // Compute edge density in 4x4 grid (16 cells)
+        var hist = new Array(16).fill(0);
+        var cellSize = 16;
+        for (var cy = 0; cy < 4; cy++) {
+          for (var cx = 0; cx < 4; cx++) {
+            var sum = 0;
+            var count = 0;
+            for (var y = cy * cellSize; y < (cy+1) * cellSize; y++) {
+              for (var x = cx * cellSize; x < (cx+1) * cellSize; x++) {
+                sum += edgeMap[y*64 + x];
+                count++;
+              }
+            }
+            hist[cy*4 + cx] = sum / count;
+          }
+        }
+        
+        // Normalize
+        var maxVal = Math.max.apply(null, hist);
+        if (maxVal > 0) {
+          for (var i = 0; i < 16; i++) hist[i] /= maxVal;
+        }
+        
+        resolve(hist);
+      };
+      img.onerror = function() { resolve(null); };
+      img.src = dataUrl;
+    });
+  }
+
+  // Compute gradient orientation histogram (captures shape structure)
+  // 8 orientation bins
+  computeGradientHistogram(dataUrl) {
+    var self = this;
+    return new Promise(function(resolve) {
+      var img = new Image();
+      img.onload = function() {
+        var c = document.createElement('canvas');
+        c.width = 64; c.height = 64;
+        var ctx = c.getContext('2d');
+        ctx.drawImage(img, 0, 0, 64, 64);
+        var data = ctx.getImageData(0, 0, 64, 64).data;
+        
+        // Convert to grayscale
+        var gray = new Float32Array(64 * 64);
+        for (var i = 0; i < 4096; i++) {
+          gray[i] = data[i*4] * 0.299 + data[i*4+1] * 0.587 + data[i*4+2] * 0.114;
+        }
+        
+        // Compute gradient orientations
+        var hist = new Array(8).fill(0);
+        for (var y = 1; y < 63; y++) {
+          for (var x = 1; x < 63; x++) {
+            var gx = 
+              -gray[(y-1)*64 + (x-1)] + gray[(y-1)*64 + (x+1)] +
+              -2*gray[y*64 + (x-1)] + 2*gray[y*64 + (x+1)] +
+              -gray[(y+1)*64 + (x-1)] + gray[(y+1)*64 + (x+1)];
+            
+            var gy = 
+              -gray[(y-1)*64 + (x-1)] - 2*gray[(y-1)*64 + x] - gray[(y-1)*64 + (x+1)] +
+              gray[(y+1)*64 + (x-1)] + 2*gray[(y+1)*64 + x] + gray[(y+1)*64 + (x+1)];
+            
+            var magnitude = Math.sqrt(gx*gx + gy*gy);
+            var angle = Math.atan2(gy, gx);
+            if (angle < 0) angle += Math.PI * 2;
+            
+            var bin = Math.floor(angle / (Math.PI * 2 / 8));
+            if (bin >= 8) bin = 7;
+            hist[bin] += magnitude;
+          }
+        }
+        
+        // Normalize
+        var sum = 0;
+        for (var i = 0; i < 8; i++) sum += hist[i];
+        if (sum > 0) {
+          for (var i = 0; i < 8; i++) hist[i] /= sum;
+        }
+        
+        resolve(hist);
+      };
+      img.onerror = function() { resolve(null); };
+      img.src = dataUrl;
+    });
+  }
+
+  // Compute color histogram for an image (returns Promise<Array>)
+  computeColorHistogram(dataUrl) {
+    var self = this;
+    return new Promise(function(resolve) {
+      var img = new Image();
+      img.onload = function() {
+        var c = document.createElement('canvas');
+        c.width = 32; c.height = 32;
+        var ctx = c.getContext('2d');
+        ctx.drawImage(img, 0, 0, 32, 32);
+        var data = ctx.getImageData(0, 0, 32, 32).data;
+        
+        // Compute RGB histogram (8 bins per channel = 512 bins)
+        var hist = new Array(512).fill(0);
+        for (var i = 0; i < 1024; i++) {
+          var r = Math.floor(data[i*4] / 32);
+          var g = Math.floor(data[i*4+1] / 32);
+          var b = Math.floor(data[i*4+2] / 32);
+          var idx = r * 64 + g * 8 + b;
+          hist[idx]++;
+        }
+        
+        // Normalize
+        var sum = 0;
+        for (var i = 0; i < 512; i++) sum += hist[i];
+        if (sum > 0) {
+          for (var i = 0; i < 512; i++) hist[i] /= sum;
+        }
+        
+        resolve(hist);
+      };
+      img.onerror = function() { resolve(null); };
+      img.src = dataUrl;
+    });
+  }
+
+  // Combined similarity score (0-100, higher = more similar)
+  // Uses 7 features: pHash, aHash, dHash, colorHist, edgeHist, gradientHist, ssimFeatures
+  // queryHashes and targetHashes are [pHash, aHash, dHash, colorHist, edgeHist, gradientHist, ssimFeatures]
+  combinedSimilarity(queryHashes, targetHashes) {
+    if (!queryHashes || !targetHashes) return 0;
+    
+    // Perceptual hash similarities (20% total)
+    var pDist = this.hammingDist(queryHashes[0], targetHashes[0]);
+    var aDist = this.hammingDist(queryHashes[1], targetHashes[1]);
+    var dDist = this.hammingDist(queryHashes[2], targetHashes[2]);
+
+    var pSim = Math.max(0, (1 - pDist / 256) * 100);
+    var aSim = Math.max(0, (1 - aDist / 256) * 100);
+    var dSim = Math.max(0, (1 - dDist / 256) * 100);
+
+    var hashScore = pSim * 0.45 + dSim * 0.35 + aSim * 0.20;
+    
+    // Color histogram similarity (15%)
+    var colorScore = 0;
+    if (queryHashes[3] && targetHashes[3]) {
+      colorScore = this.computeHistogramIntersection(queryHashes[3], targetHashes[3]);
+    }
+    
+    // Edge density histogram similarity (20%)
+    var edgeScore = 0;
+    if (queryHashes[4] && targetHashes[4]) {
+      edgeScore = this.computeHistogramIntersection(queryHashes[4], targetHashes[4]);
+    }
+    
+    // Gradient orientation histogram similarity (20%)
+    var gradientScore = 0;
+    if (queryHashes[5] && targetHashes[5]) {
+      gradientScore = this.computeHistogramIntersection(queryHashes[5], targetHashes[5]);
+    }
+    
+    // SSIM-like structural similarity (25%)
+    // Compares local statistics (mean, variance) - very robust to small variations
+    var ssimScore = 0;
+    if (queryHashes[6] && targetHashes[6]) {
+      ssimScore = this.computeSSIMSimilarity(queryHashes[6], targetHashes[6]);
+    }
+    
+    // Combined score with emphasis on structural features
+    // Structural features (edge + gradient + ssim) are most robust for product catalogs
+    var structuralScore = (edgeScore + gradientScore + ssimScore) / 3;
+    
+    // Final weights: 20% perceptual hash + 15% color + 65% structural
+    // Structural features get highest weight because they focus on shape and local patterns
+    var totalScore = hashScore * 0.20 + colorScore * 0.15 + structuralScore * 0.65;
+    
+    // Debug logging for first comparison
+    if (!this._loggedSimilarity) {
+      console.log('[SIMILARITY_DEBUG] Component scores:');
+      console.log('  Hash: pSim=' + pSim.toFixed(1) + ', aSim=' + aSim.toFixed(1) + ', dSim=' + dSim.toFixed(1) + ', hashScore=' + hashScore.toFixed(1));
+      console.log('  Color: ' + colorScore.toFixed(1));
+      console.log('  Edge: ' + edgeScore.toFixed(1));
+      console.log('  Gradient: ' + gradientScore.toFixed(1));
+      console.log('  SSIM: ' + ssimScore.toFixed(1));
+      console.log('  Structural avg: ' + structuralScore.toFixed(1));
+      console.log('  TOTAL: ' + totalScore.toFixed(1));
+      this._loggedSimilarity = true;
+    }
+    
+    return totalScore;
+  }
+
+  // Compute SSIM-like similarity from pre-computed features (0-100)
+  // Uses cosine similarity for mean and variance vectors
+  computeSSIMSimilarity(features1, features2) {
+    if (!features1 || !features2 || features1.length !== features2.length) return 0;
+    
+    // Cosine similarity
+    var dotProduct = 0;
+    var norm1 = 0;
+    var norm2 = 0;
+    
+    for (var i = 0; i < features1.length; i++) {
+      dotProduct += features1[i] * features2[i];
+      norm1 += features1[i] * features1[i];
+      norm2 += features2[i] * features2[i];
+    }
+    
+    var cosineSim = dotProduct / (Math.sqrt(norm1) * Math.sqrt(norm2));
+    
+    // Convert to 0-100 scale
+    return Math.max(0, (cosineSim + 1) * 50);
+  }
+
+  // Compute histogram intersection for two pre-computed histograms (0-100)
+  computeHistogramIntersection(hist1, hist2) {
+    if (!hist1 || !hist2 || hist1.length !== hist2.length) return 0;
+    
+    var intersection = 0;
+    for (var i = 0; i < hist1.length; i++) {
+      intersection += Math.min(hist1[i], hist2[i]);
+    }
+    
+    return intersection * 100;
+  }
+
+  // Color histogram similarity (0-100, higher = more similar)
+  computeColorSimilarity(dataUrl1, dataUrl2) {
+    var self = this;
+    return new Promise(function(resolve) {
+      var img1 = new Image();
+      var img2 = new Image();
+      var loaded = 0;
+      var canvas1, canvas2;
+      
+      img1.onload = function() {
+        canvas1 = document.createElement('canvas');
+        canvas1.width = 32; canvas1.height = 32;
+        var ctx = canvas1.getContext('2d');
+        ctx.drawImage(img1, 0, 0, 32, 32);
+        loaded++;
+        if (loaded === 2) compare();
+      };
+      
+      img2.onload = function() {
+        canvas2 = document.createElement('canvas');
+        canvas2.width = 32; canvas2.height = 32;
+        var ctx = canvas2.getContext('2d');
+        ctx.drawImage(img2, 0, 0, 32, 32);
+        loaded++;
+        if (loaded === 2) compare();
+      };
+      
+      img1.onerror = function() { resolve(0); };
+      img2.onerror = function() { resolve(0); };
+      
+      img1.src = dataUrl1;
+      img2.src = dataUrl2;
+      
+      function compare() {
+        var data1 = canvas1.getContext('2d').getImageData(0, 0, 32, 32).data;
+        var data2 = canvas2.getContext('2d').getImageData(0, 0, 32, 32).data;
+        
+        // Compute HSV histograms (8 bins per channel = 512 bins total)
+        var hist1 = new Array(512).fill(0);
+        var hist2 = new Array(512).fill(0);
+        
+        for (var i = 0; i < 1024; i++) {
+          var r = data1[i*4] / 32;
+          var g = data1[i*4+1] / 32;
+          var b = data1[i*4+2] / 32;
+          var idx = Math.floor(r) * 64 + Math.floor(g) * 8 + Math.floor(b);
+          hist1[idx]++;
+          
+          r = data2[i*4] / 32;
+          g = data2[i*4+1] / 32;
+          b = data2[i*4+2] / 32;
+          idx = Math.floor(r) * 64 + Math.floor(g) * 8 + Math.floor(b);
+          hist2[idx]++;
+        }
+        
+        // Normalize histograms
+        var sum1 = hist1.reduce(function(a, b) { return a + b; }, 0);
+        var sum2 = hist2.reduce(function(a, b) { return a + b; }, 0);
+        for (var i = 0; i < 512; i++) {
+          hist1[i] /= sum1;
+          hist2[i] /= sum2;
+        }
+        
+        // Compute histogram intersection
+        var intersection = 0;
+        for (var i = 0; i < 512; i++) {
+          intersection += Math.min(hist1[i], hist2[i]);
+        }
+        
+        // Convert to similarity score (0-100)
+        resolve(intersection * 100);
+      }
+    });
+  }
+
+  /* ========== Image Extraction from Excel ========== */
+  async extractImagesFromExcel(arrayBuffer) {
+    var rowImages = {};
+    try {
+      var zip = await JSZip.loadAsync(arrayBuffer);
+      var drawingRels = {};
+
+      // 1. Parse drawing relationships to map rId → image file path
+      var relsFiles = zip.file(/xl\/drawings\/_rels\/.*\.rels$/);
+      for (var r = 0; r < relsFiles.length; r++) {
+        var relsXml = await relsFiles[r].async('text');
+        var rp = new DOMParser().parseFromString(relsXml, 'text/xml');
+        var rels = rp.getElementsByTagName('Relationship');
+        for (var i = 0; i < rels.length; i++) {
+          drawingRels[rels[i].getAttribute('Id')] = rels[i].getAttribute('Target');
+        }
+      }
+
+      // 2. Parse drawing XML to find image anchors
+      var drawingFiles = zip.file(/xl\/drawings\/drawing\d+\.xml$/);
+      for (var d = 0; d < drawingFiles.length; d++) {
+        var dxml = await drawingFiles[d].async('text');
+        var dp = new DOMParser().parseFromString(dxml, 'text/xml');
+
+        // Collect all anchor types
+        var anchors = [];
+        var oneCells = dp.getElementsByTagName('xdr:oneCellAnchor');
+        for (var i = 0; i < oneCells.length; i++) anchors.push(oneCells[i]);
+        var twoCells = dp.getElementsByTagName('xdr:twoCellAnchor');
+        for (var i = 0; i < twoCells.length; i++) anchors.push(twoCells[i]);
+
+        for (var a = 0; a < anchors.length; a++) {
+          var anchor = anchors[a];
+          var fromEl = anchor.getElementsByTagName('xdr:from')[0];
+          if (!fromEl) continue;
+          var rowEls = fromEl.getElementsByTagName('xdr:row');
+          if (!rowEls.length) continue;
+          var row = parseInt(rowEls[0].textContent);
+
+          // Find the image rId
+          var picEls = anchor.getElementsByTagName('xdr:pic');
+          if (!picEls.length) continue;
+          var blipEls = picEls[0].getElementsByTagName('a:blip');
+          if (!blipEls.length) continue;
+          var rId = blipEls[0].getAttribute('r:embed');
+          if (!rId || !drawingRels[rId]) continue;
+
+          // Resolve image path
+          var imgPath = drawingRels[rId];
+          if (imgPath.indexOf('..') === 0) imgPath = 'xl/' + imgPath.substring(3);
+          else if (imgPath[0] !== '/') imgPath = 'xl/drawings/' + imgPath;
+          else imgPath = imgPath.substring(1);
+
+          var imgFile = zip.file(imgPath);
+          if (!imgFile) continue;
+
+          var blob = await imgFile.async('blob');
+          var dataUrl = await this._blobToDataURL(blob);
+
+          if (!rowImages[row]) rowImages[row] = [];
+          rowImages[row].push(dataUrl);
+        }
+      }
+    } catch (e) {
+      console.error('Image extraction error:', e);
+    }
+    console.log('[EXTRACT] Extracted images for rows:', Object.keys(rowImages), 'total images:', Object.values(rowImages).reduce(function(sum, arr) { return sum + arr.length; }, 0));
+    return rowImages;
+  }
+
+  _blobToDataURL(blob) {
+    return new Promise(function(resolve) {
+      var reader = new FileReader();
+      reader.onload = function() { resolve(reader.result); };
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  /* ========== Excel Import ========== */
+  async processFile(file) {
+    // Require password verification before import
+    if (!this.passwordVerified) {
+      this._pendingFile = file;
+      this.toast('请先验证数据维护密码', 'info');
+      this.showPasswordModal();
+      return;
+    }
+
+    // Read import mode from radio buttons
+    var modeRadios = document.querySelectorAll('input[name="importMode"]');
+    var mode = 'replace';
+    for (var i = 0; i < modeRadios.length; i++) {
+      if (modeRadios[i].checked) { mode = modeRadios[i].value; break; }
+    }
+    this._pendingAppend = (mode === 'append' && this.state.rawData.length > 0);
+
+    var isPDF = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
+    if (isPDF) {
+      await this.processPDF(file);
+    } else {
+      this.showLoading('正在读取Excel文件...');
+      try {
+        var data = await file.arrayBuffer();
+        this.state._rawBuffer = data;
+        var wb = XLSX.read(data, { type: 'array' });
+
+        if (wb.SheetNames.length > 1) {
+          this.hideLoading();
+          this.showSheetSelection(wb.SheetNames, data);
+        } else {
+          await this.parseSheet(wb, wb.SheetNames[0], data);
+        }
+      } catch (e) {
+        this.hideLoading();
+        this.toast('文件读取失败: ' + e.message, 'error');
+        console.error(e);
+      }
+    }
+    // Reset file input so same file can be re-selected
+    document.getElementById('fileInput').value = '';
+  }
+
+  showSheetSelection(sheets, data) {
+    var html = '<div style="text-align:center;padding:20px"><h3>选择工作表</h3><p style="color:var(--text2);margin:12px 0">检测到多个工作表，请选择要导入的：</p>';
+    sheets.forEach(function(name, i) {
+      html += '<button class="btn btn-primary" style="margin:4px;display:block;width:100%" data-sheet="' + i + '">' + this.esc(name) + '</button>';
+    }.bind(this));
+    html += '</div>';
+
+    var modal = document.getElementById('detailModal');
+    document.getElementById('modalTitle').textContent = '选择工作表';
+    document.getElementById('modalBody').innerHTML = html;
+    modal.classList.add('active');
+
+    var self = this;
+    modal.querySelectorAll('[data-sheet]').forEach(function(btn) {
+      btn.onclick = async function() {
+        var idx = parseInt(btn.dataset.sheet);
+        self.closeModal();
+        self.showLoading('正在解析...');
+        var wb = XLSX.read(data, { type: 'array' });
+        await self.parseSheet(wb, sheets[idx], data);
+      };
+    });
+  }
+
+  async parseSheet(wb, sheetName, data) {
+    var sheet = wb.Sheets[sheetName];
+    var rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+    // Filter out completely empty rows
+    rows = rows.filter(function(r) {
+      return Object.keys(r).some(function(k) { return r[k] !== ''; });
+    });
+
+    if (!rows.length) {
+      this.hideLoading();
+      this.toast('工作表为空', 'error');
+      return;
+    }
+
+    // Check append mode
+    var isAppend = this.state.rawData.length > 0 && this._pendingAppend;
+    var offset = isAppend ? this.state.rawData.length : 0;
+    var oldHeaders = isAppend ? this.state.headers.slice() : [];
+    var oldRowImages = isAppend ? JSON.parse(JSON.stringify(this.state.rowImages)) : {};
+
+    if (isAppend) {
+      // Merge headers (union of old and new)
+      var newHeaders = Object.keys(rows[0]);
+      var mergedHeaders = oldHeaders.slice();
+      newHeaders.forEach(function(h) {
+        if (mergedHeaders.indexOf(h) < 0) mergedHeaders.push(h);
+      });
+      this.state.headers = mergedHeaders;
+
+      // Deduplication: find name column for matching
+      var nameCol = this.state.columnMapping.name || this.state.headers[0];
+      console.log('[Dedup] Name column:', nameCol, '| Existing records:', this.state.rawData.length, '| New rows:', rows.length);
+      var duplicateCount = 0;
+      var newCount = 0;
+      var updatedCount = 0;
+
+      // Build a map of existing records by name for quick lookup
+      var existingByName = {};
+      for (var i = 0; i < this.state.rawData.length; i++) {
+        var name = this.state.rawData[i][nameCol];
+        if (name != null && name !== '') {
+          existingByName[String(name)] = i;
+        }
+      }
+      console.log('[Dedup] Existing names:', Object.keys(existingByName));
+
+      // Process each new row
+      var actualOffset = this.state.rawData.length;
+      for (var r = 0; r < rows.length; r++) {
+        var row = rows[r];
+        var rowName = row[nameCol];
+        
+        if (rowName != null && rowName !== '' && existingByName.hasOwnProperty(String(rowName))) {
+          console.log('[Dedup] Row ' + r + ': "' + rowName + '" -> DUPLICATE (idx=' + existingByName[String(rowName)] + ')');
+          // Duplicate found - merge new fields into existing record
+          var existIdx = existingByName[String(rowName)];
+          var existRow = this.state.rawData[existIdx];
+          var hasNewContent = false;
+          var mergedFields = [];
+
+          // Fill in fields that are empty or missing in the existing record
+          for (var key in row) {
+            var newVal = row[key];
+            // Skip if new value is empty
+            if (newVal === '' || newVal == null) continue;
+            
+            var oldVal = existRow[key];
+            // Update if old value is empty, null, undefined, or doesn't exist
+            if (oldVal === '' || oldVal == null || !(key in existRow)) {
+              existRow[key] = newVal;
+              hasNewContent = true;
+              mergedFields.push(key);
+            }
+          }
+
+          if (hasNewContent) {
+            updatedCount++;
+            console.log('[Dedup] Merged fields into "' + rowName + '":', mergedFields.join(', '));
+          } else {
+            console.log('[Dedup] No new content for "' + rowName + '", skipping');
+          }
+          duplicateCount++;
+        } else {
+          // New record - add it
+          console.log('[Dedup] Row ' + r + ': "' + (rowName || 'unnamed') + '" -> NEW');
+          this.state.rawData.push(row);
+          newCount++;
+
+          // Update the name map
+          if (rowName != null && rowName !== '') {
+            existingByName[String(rowName)] = this.state.rawData.length - 1;
+          }
+        }
+      }
+
+      offset = actualOffset;
+
+      // Show deduplication summary
+      var summary = '导入完成：新增 ' + newCount + ' 条';
+      if (updatedCount > 0) summary += '，补充 ' + updatedCount + ' 条';
+      if (duplicateCount - updatedCount > 0) summary += '，跳过 ' + (duplicateCount - updatedCount) + ' 条完全重复';
+      this.toast(summary, 'success');
+    } else {
+      this.state.rawData = rows;
+      this.state.headers = Object.keys(rows[0]);
+    }
+
+    // Extract images
+    this.showLoading('正在提取图纸图片...');
+    var rawImages = await this.extractImagesFromExcel(data);
+
+    // Also try SheetJS built-in image extraction as fallback
+    if (sheet['!images'] && sheet['!images'].length) {
+      for (var i = 0; i < sheet['!images'].length; i++) {
+        var img = sheet['!images'][i];
+        var row = (img.to || img.from) ? (img.to || img.from).row : i;
+        if (img.imgData) {
+          try {
+            var u8 = new Uint8Array(img.imgData);
+            var b64 = this._uint8ToBase64(u8);
+            var mime = (b64.substring(0, 4) === '/9j/') ? 'image/jpeg' : 'image/png';
+            var url = 'data:' + mime + ';base64,' + b64;
+            if (!rawImages[row]) rawImages[row] = [];
+            rawImages[row].push(url);
+          } catch(e) { console.warn('SheetJS image convert error:', e); }
+        }
+      }
+    }
+
+    // Map raw row indices to data indices
+    // Drawing XML: row 0 = header, row 1 = first data row
+    // sheet_to_json: index 0 = first data row (header skipped)
+    // So drawing row N maps to data index N-1
+    var newRowImages = {};
+    for (var rawRow in rawImages) {
+      var dataIdx = parseInt(rawRow) - 1 + offset; // offset for header row + append
+      if (dataIdx < offset) continue;
+      if (dataIdx < this.state.rawData.length) {
+        newRowImages[dataIdx] = rawImages[rawRow];
+      }
+    }
+
+    if (isAppend) {
+      // Merge old and new images
+      this.state.rowImages = oldRowImages;
+      for (var k in newRowImages) {
+        this.state.rowImages[k] = newRowImages[k];
+      }
+    } else {
+      this.state.rowImages = newRowImages;
+    }
+
+    console.log('[PARSE] Final rowImages keys:', Object.keys(this.state.rowImages), 'total images:', Object.values(this.state.rowImages).reduce(function(sum, arr) { return sum + arr.length; }, 0));
+
+    var imgCount = Object.keys(this.state.rowImages).length;
+    var newImgCount = Object.keys(newRowImages).length;
+    if (!isAppend) {
+      this.toast('已提取 ' + imgCount + ' 条记录的图纸', imgCount > 0 ? 'success' : 'info');
+    } else if (newImgCount > 0) {
+      this.toast('提取 ' + newImgCount + ' 张图纸', 'success');
+    }
+
+    // Compute perceptual hashes
+    this.showLoading('正在计算图像特征...');
+    if (isAppend) {
+      // Only compute hashes for newly added images
+      await this.computeNewHashes(offset);
+    } else {
+      await this.computeAllHashes();
+    }
+
+    this.hideLoading();
+    this.enterMainApp();
+
+    // Save to local database
+    var syncMode = isAppend ? 'append' : 'replace';
+    await this._saveToDB(syncMode);
+  }
+
+  _uint8ToBase64(u8) {
+    var bin = '';
+    for (var i = 0; i < u8.length; i++) bin += String.fromCharCode(u8[i]);
+    return btoa(bin);
+  }
+
+  async computeAllHashes() {
+    this.state.imageHashes = {};
+    var indices = Object.keys(this.state.rowImages);
+    var promises = indices.map(function(idx) {
+      var urls = this.state.rowImages[idx];
+      return Promise.all(urls.map(function(url) { return this.computeImageHashes(url); }.bind(this)))
+        .then(function(triplets) {
+          var valid = triplets.filter(function(t) { return t[0] != null || t[1] != null || t[2] != null; });
+          if (valid.length) this.state.imageHashes[idx] = valid;
+        }.bind(this));
+    }.bind(this));
+    await Promise.all(promises);
+  }
+
+  async computeNewHashes(startIdx) {
+    var indices = Object.keys(this.state.rowImages);
+    var newIndices = indices.filter(function(idx) { return parseInt(idx) >= startIdx; });
+    var promises = newIndices.map(function(idx) {
+      var urls = this.state.rowImages[idx];
+      return Promise.all(urls.map(function(url) { return this.computeImageHashes(url); }.bind(this)))
+        .then(function(triplets) {
+          var valid = triplets.filter(function(t) { return t[0] != null || t[1] != null || t[2] != null; });
+          if (valid.length) this.state.imageHashes[idx] = valid;
+        }.bind(this));
+    }.bind(this));
+    await Promise.all(promises);
+  }
+
+  /* ========== PDF Import ========== */
+  async processPDF(file) {
+    this.showLoading('正在解析PDF文件...');
+    try {
+      if (typeof pdfjsLib === 'undefined') {
+        this.hideLoading();
+        this.toast('PDF解析库未加载，请检查网络连接', 'error');
+        return;
+      }
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+      var data = await file.arrayBuffer();
+      var pdf = await pdfjsLib.getDocument({ data: data }).promise;
+      var numPages = pdf.numPages;
+
+      var allRecords = [];
+      var allHeadersSet = [];
+      var pageImages = {};
+      var dataIdx = 0;
+      var totalProducts = 0;
+
+      for (var p = 1; p <= numPages; p++) {
+        this.showLoading('正在解析PDF... (' + p + '/' + numPages + ')');
+        var page = await pdf.getPage(p);
+        var viewport = page.getViewport({ scale: 1 });
+        var pageWidth = viewport.width;
+        var pageHeight = viewport.height;
+
+        // Extract text content with positions
+        var textContent = await page.getTextContent();
+        var textItems = textContent.items.filter(function(it) {
+          return it.str && it.str.trim().length > 0;
+        });
+
+        // Cluster text items into product blocks
+        var productBlocks = this._clusterTextIntoProducts(textItems, pageWidth, pageHeight);
+
+        // Extract images with positions
+        var positionedImages = await this._extractPDFImagesWithPositions(page);
+
+        // Match images to product blocks
+        var blockImages = this._matchImagesToBlocks(productBlocks, positionedImages, pageWidth, pageHeight);
+
+        // If no products detected via clustering, fall back to single-product-per-page
+        if (productBlocks.length === 0 || (productBlocks.length <= 1 && positionedImages.length === 0)) {
+          // Fall back: render whole page as image, extract fields from all text
+          var textLines = this._extractPDFTextLines(textContent);
+          var scale = numPages > 30 ? 1.5 : 2.0;
+          var imgUrl = await this._renderPDFPage(page, scale);
+          var fields = this._extractPDFFields(textLines);
+
+          if (Object.keys(fields).length > 0) {
+            var record = {};
+            for (var key in fields) {
+              var normName = this._normalizeFieldName(key);
+              if (normName && fields[key]) {
+                record[normName] = fields[key];
+                if (allHeadersSet.indexOf(normName) < 0) allHeadersSet.push(normName);
+              }
+            }
+            if (Object.keys(record).length > 0) {
+              allRecords.push(record);
+              if (imgUrl) pageImages[dataIdx] = [imgUrl];
+              dataIdx++;
+              totalProducts++;
+            }
+          } else {
+            // Try table parsing
+            var tableRecords = this._parseTableRecords(textLines);
+            if (tableRecords.length > 1) {
+              var firstRecordIdx = dataIdx;
+              for (var t = 0; t < tableRecords.length; t++) {
+                var trec = {};
+                for (var tk in tableRecords[t]) {
+                  if (tableRecords[t][tk]) {
+                    trec[tk] = tableRecords[t][tk];
+                    if (allHeadersSet.indexOf(tk) < 0) allHeadersSet.push(tk);
+                  }
+                }
+                if (Object.keys(trec).length > 0) {
+                  allRecords.push(trec);
+                  if (dataIdx > firstRecordIdx && pageImages[firstRecordIdx] && pageImages[firstRecordIdx].length > 0) {
+                    pageImages[dataIdx] = pageImages[firstRecordIdx].slice();
+                  }
+                  dataIdx++;
+                  totalProducts++;
+                }
+              }
+            } else {
+              var hasText = textLines.some(function(l) { return l.trim().length > 0; });
+              if (hasText) {
+                var rec = { '页码': 'P' + p };
+                var kvPattern = /([^\s:：]{2,})\s*[:：]\s*([^\n]+)/g;
+                var kvMatch;
+                while ((kvMatch = kvPattern.exec(textLines.join(' '))) !== null) {
+                  var k = kvMatch[1].trim();
+                  var v = kvMatch[2].trim();
+                  if (k && v && k.length < 30) {
+                    rec[k] = v;
+                    if (allHeadersSet.indexOf(k) < 0) allHeadersSet.push(k);
+                  }
+                }
+                allRecords.push(rec);
+                if (imgUrl) pageImages[dataIdx] = [imgUrl];
+                dataIdx++;
+                totalProducts++;
+              }
+            }
+          }
+          continue; // Move to next page
+        }
+
+        // Multi-product mode: process each product block
+        for (var b = 0; b < productBlocks.length; b++) {
+          var block = productBlocks[b];
+          var blockItems = block.items;
+
+          // Build text lines from block items
+          var blockLines = this._blockItemsToLines(blockItems);
+          var blockFields = this._extractPDFFields(blockLines);
+
+          // Build record from extracted fields
+          var record = {};
+          for (var key in blockFields) {
+            var normName = this._normalizeFieldName(key);
+            if (normName && blockFields[key]) {
+              record[normName] = blockFields[key];
+              if (allHeadersSet.indexOf(normName) < 0) allHeadersSet.push(normName);
+            }
+          }
+
+          // Assign image to this product
+          if (blockImages[b] && blockImages[b].length > 0) {
+            pageImages[dataIdx] = blockImages[b];
+          } else {
+            // No matched image; render the product region from the page
+            var regionUrl = await this._renderPDFRegion(page, block.bounds, viewport);
+            if (regionUrl) pageImages[dataIdx] = [regionUrl];
+          }
+
+          // Add page number for reference
+          if (!record['页码']) record['页码'] = 'P' + p;
+          if (!record['序号']) record['序号'] = String(totalProducts + 1);
+
+          if (Object.keys(record).length > 0) {
+            allRecords.push(record);
+            dataIdx++;
+            totalProducts++;
+          }
+        }
+      }
+
+      // If no records were parsed but PDF has pages, create image-only records
+      if (allRecords.length === 0 && numPages > 0) {
+        for (var i = 0; i < numPages; i++) {
+          allRecords.push({ '序号': String(i + 1) });
+          pageImages[i] = pageImages[i] || [];
+        }
+        allHeadersSet = ['序号'];
+        this.toast('PDF未检测到可提取文本，已将每页作为图片记录导入', 'info');
+      }
+
+      // Check append mode
+      var isAppend = this.state.rawData.length > 0 && this._pendingAppend;
+      var offset = isAppend ? this.state.rawData.length : 0;
+
+      if (isAppend) {
+        var offsetRecords = [];
+        var offsetImages = {};
+        for (var i = 0; i < allRecords.length; i++) {
+          offsetRecords.push(allRecords[i]);
+          if (pageImages[i]) {
+            offsetImages[i + offset] = pageImages[i];
+          }
+        }
+        this.state.rawData = this.state.rawData.concat(offsetRecords);
+        var mergedHeaders = this.state.headers.slice();
+        allHeadersSet.forEach(function(h) {
+          if (mergedHeaders.indexOf(h) < 0) mergedHeaders.push(h);
+        });
+        this.state.headers = mergedHeaders;
+        for (var k in offsetImages) {
+          this.state.rowImages[k] = offsetImages[k];
+        }
+      } else {
+        this.state.rawData = allRecords;
+        this.state.headers = allHeadersSet;
+        this.state.rowImages = pageImages;
+      }
+
+      // Compute perceptual hashes for image search
+      this.showLoading('正在计算图像特征...');
+      if (isAppend) {
+        await this.computeNewHashes(offset);
+      } else {
+        await this.computeAllHashes();
+      }
+
+      this.hideLoading();
+      var imgCount = Object.keys(this.state.rowImages).length;
+      if (totalProducts > numPages) {
+        this.toast('PDF导入成功：检测到 ' + totalProducts + ' 个产品（' + numPages + ' 页），' + imgCount + ' 张图纸', 'success');
+      } else if (isAppend) {
+        this.toast('PDF追加成功：' + allRecords.length + ' 条新记录', 'success');
+      } else {
+        this.toast('PDF导入成功：' + allRecords.length + ' 条记录，' + imgCount + ' 张图纸', 'success');
+      }
+      this.enterMainApp();
+
+      // Save to local database
+      var syncMode = isAppend ? 'append' : 'replace';
+      await this._saveToDB(syncMode);
+    } catch (e) {
+      this.hideLoading();
+      this.toast('PDF解析失败: ' + (e.message || e), 'error');
+      console.error('PDF parse error:', e);
+    }
+  }
+
+  _renderPDFPage(page, scale) {
+    var viewport = page.getViewport({ scale: scale });
+    var canvas = document.createElement('canvas');
+    canvas.width = Math.floor(viewport.width);
+    canvas.height = Math.floor(viewport.height);
+    var ctx = canvas.getContext('2d');
+    return page.render({ canvasContext: ctx, viewport: viewport }).promise.then(function() {
+      return canvas.toDataURL('image/png');
+    });
+  }
+
+  async _extractPDFImages(page) {
+    var images = [];
+    try {
+      var ops = await page.getOperatorList();
+      var fns = ops.fnArray;
+      var args = ops.argsArray;
+
+      for (var i = 0; i < fns.length; i++) {
+        // fnId 83 = paintImageXObject, 84 = paintInlineImageXObject
+        if (fns[i] === 83 || fns[i] === 84) {
+          var imgObj = args[i][0];
+          if (!imgObj) continue;
+
+          // Get image data
+          var width = imgObj.width || 0;
+          var height = imgObj.height || 0;
+
+          // Skip tiny images (likely icons/decorations, less than 50x50)
+          if (width < 50 || height < 50) continue;
+          // Skip extremely large images (likely full-page backgrounds, over 5000x5000)
+          if (width > 5000 || height > 5000) continue;
+
+          try {
+            var imgData = imgObj.getImageData ? imgObj.getImageData() : null;
+            if (!imgData) continue;
+
+            var canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            var ctx = canvas.getContext('2d');
+
+            // Create ImageData from raw data
+            var imageData;
+            if (imgData.data) {
+              imageData = new ImageData(new Uint8ClampedArray(imgData.data), width, height);
+            } else if (imgData instanceof Uint8ClampedArray) {
+              imageData = new ImageData(imgData, width, height);
+            } else {
+              continue;
+            }
+            ctx.putImageData(imageData, 0, 0);
+            var dataUrl = canvas.toDataURL('image/png');
+            if (dataUrl && dataUrl.length > 1000) {
+              images.push(dataUrl);
+            }
+          } catch (imgErr) {
+            // Skip this image if extraction fails
+            continue;
+          }
+        }
+      }
+    } catch (e) {
+      // If image extraction fails, return empty array (will fall back to page render)
+      console.warn('PDF image extraction warning:', e);
+    }
+    return images;
+  }
+
+  async _extractPDFImagesWithPositions(page) {
+    var images = [];
+    try {
+      var ops = await page.getOperatorList();
+      var fns = ops.fnArray;
+      var args = ops.argsArray;
+      // Track graphics state for image positioning
+      var tx = 0, ty = 0;
+      var stack = [];
+
+      for (var i = 0; i < fns.length; i++) {
+        var fn = fns[i];
+        // FnId 1 = beginText, 2 = endText, 3 = setCharSpacing, 4 = setWordSpacing
+        // 5 = setHScale, 6 = setLeading, 7 = setFont, 8 = setTextRenderingMode
+        // 9 = setTextRise, 10 = moveText, 11 = setLeadingMoveText
+        // 12 = setTextMatrix, 13 = moveTextPoint, 14 = beginLine
+        // 15 = setLineWidth, 16 = setLineCap, 17 = setLineJoin
+        // 18 = setMiterLimit, 19 = setDash, 20 = setRenderingIntent
+        // 21 = setFlatness, 22 = setGState, 23 = save, 24 = restore
+        // 25 = transform (cm)
+        // 83 = paintImageXObject, 84 = paintInlineImageXObject
+
+        if (fn === 23) { // save
+          stack.push({ tx: tx, ty: ty });
+        } else if (fn === 24) { // restore
+          var prev = stack.pop();
+          if (prev) { tx = prev.tx; ty = prev.ty; }
+        } else if (fn === 25) { // cm (concat matrix / transform)
+          var cmArgs = args[i];
+          if (cmArgs && cmArgs.length >= 6) {
+            // a b c d e f — e=tx, f=ty for simple translations
+            tx += cmArgs[4] || 0;
+            ty += cmArgs[5] || 0;
+          }
+        } else if (fn === 13) { // Td (move text point)
+          var tdArgs = args[i];
+          if (tdArgs && tdArgs.length >= 2) {
+            tx += tdArgs[0] || 0;
+            ty += tdArgs[1] || 0;
+          }
+        } else if (fn === 12) { // Tm (text matrix)
+          var tmArgs = args[i];
+          if (tmArgs && tmArgs.length >= 6) {
+            tx = tmArgs[4] || 0;
+            ty = tmArgs[5] || 0;
+          }
+        } else if (fn === 83 || fn === 84) { // paint image
+          var imgObj = args[i][0];
+          if (!imgObj) continue;
+          var width = imgObj.width || 0;
+          var height = imgObj.height || 0;
+          if (width < 50 || height < 50) continue;
+          if (width > 5000 || height > 5000) continue;
+
+          try {
+            var imgData = imgObj.getImageData ? imgObj.getImageData() : null;
+            if (!imgData) continue;
+            var canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            var ctx = canvas.getContext('2d');
+            var imageData;
+            if (imgData.data) {
+              imageData = new ImageData(new Uint8ClampedArray(imgData.data), width, height);
+            } else if (imgData instanceof Uint8ClampedArray) {
+              imageData = new ImageData(imgData, width, height);
+            } else { continue; }
+            ctx.putImageData(imageData, 0, 0);
+            var dataUrl = canvas.toDataURL('image/png');
+            if (dataUrl && dataUrl.length > 1000) {
+              images.push({
+                url: dataUrl,
+                x: tx,
+                y: ty,
+                width: width,
+                height: height
+              });
+            }
+          } catch (imgErr) { continue; }
+        }
+      }
+    } catch (e) {
+      console.warn('PDF image position extraction warning:', e);
+    }
+    return images;
+  }
+
+  _clusterTextIntoProducts(textItems, pageWidth, pageHeight) {
+    if (!textItems || !textItems.length) return [];
+
+    // Sort by Y (top to bottom), then X (left to right)
+    var sorted = textItems.slice().sort(function(a, b) {
+      var ya = Math.round(a.transform[5]);
+      var yb = Math.round(b.transform[5]);
+      if (Math.abs(ya - yb) < 4) return a.transform[4] - b.transform[4];
+      return yb - ya;
+    });
+
+    // Group into lines by Y proximity
+    var lines = [];
+    var curLine = [sorted[0]];
+    var curY = Math.round(sorted[0].transform[5]);
+    for (var i = 1; i < sorted.length; i++) {
+      var y = Math.round(sorted[i].transform[5]);
+      if (Math.abs(y - curY) < 5) {
+        curLine.push(sorted[i]);
+      } else {
+        curLine.sort(function(a, b) { return a.transform[4] - b.transform[4]; });
+        lines.push(curLine);
+        curLine = [sorted[i]];
+        curY = y;
+      }
+    }
+    if (curLine.length) {
+      curLine.sort(function(a, b) { return a.transform[4] - b.transform[4]; });
+      lines.push(curLine);
+    }
+
+    if (lines.length <= 1) return [{ items: sorted, bounds: this._getItemsBounds(sorted) }];
+
+    // Detect vertical gaps between lines to find product boundaries
+    var lineYs = lines.map(function(line) {
+      return Math.round(line[0].transform[5]);
+    });
+
+    // Calculate gaps between consecutive lines
+    var gaps = [];
+    for (var i = 1; i < lineYs.length; i++) {
+      gaps.push(lineYs[i - 1] - lineYs[i]); // positive since Y decreases downward
+    }
+
+    // Find the threshold: use median gap + 2x median as product boundary threshold
+    var sortedGaps = gaps.slice().sort(function(a, b) { return a - b; });
+    var medianGap = sortedGaps[Math.floor(sortedGaps.length / 2)] || 10;
+    var threshold = Math.max(medianGap * 2.5, 20);
+
+    // Also consider horizontal separation: if lines are far apart horizontally, they might be different products
+    // Split lines into product blocks based on vertical gaps
+    var blocks = [];
+    var curBlock = [lines[0]];
+    var curBlockBounds = this._getLineBounds(lines[0]);
+
+    for (var i = 1; i < lines.length; i++) {
+      var gap = lineYs[i - 1] - lineYs[i];
+      var lineBounds = this._getLineBounds(lines[i]);
+
+      // Check horizontal overlap with current block
+      var hOverlap = curBlockBounds.maxX > lineBounds.minX && curBlockBounds.minX < lineBounds.maxX;
+
+      if (gap > threshold || (!hOverlap && gap > medianGap * 1.2)) {
+        // New product block
+        blocks.push({ items: this._flattenBlock(curBlock), bounds: curBlockBounds });
+        curBlock = [lines[i]];
+        curBlockBounds = lineBounds;
+      } else {
+        curBlock.push(lines[i]);
+        curBlockBounds = this._mergeBounds(curBlockBounds, lineBounds);
+      }
+    }
+    if (curBlock.length) {
+      blocks.push({ items: this._flattenBlock(curBlock), bounds: curBlockBounds });
+    }
+
+    // Filter out blocks that are too small (likely noise)
+    blocks = blocks.filter(function(b) {
+      var text = b.items.map(function(it) { return it.str; }).join(' ').trim();
+      return text.length >= 2;
+    });
+
+    return blocks;
+  }
+
+  _getLineBounds(line) {
+    var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (var i = 0; i < line.length; i++) {
+      var x = line[i].transform[4];
+      var y = line[i].transform[5];
+      var w = line[i].width || 10;
+      var h = line[i].height || 10;
+      if (x < minX) minX = x;
+      if (x + w > maxX) maxX = x + w;
+      if (y < minY) minY = y;
+      if (y + h > maxY) maxY = y + h;
+    }
+    return { minX: minX, maxX: maxX, minY: minY, maxY: maxY };
+  }
+
+  _getItemsBounds(items) {
+    var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (var i = 0; i < items.length; i++) {
+      var x = items[i].transform[4];
+      var y = items[i].transform[5];
+      var w = items[i].width || 10;
+      var h = items[i].height || 10;
+      if (x < minX) minX = x;
+      if (x + w > maxX) maxX = x + w;
+      if (y < minY) minY = y;
+      if (y + h > maxY) maxY = y + h;
+    }
+    return { minX: minX, maxX: maxX, minY: minY, maxY: maxY };
+  }
+
+  _mergeBounds(a, b) {
+    return {
+      minX: Math.min(a.minX, b.minX),
+      maxX: Math.max(a.maxX, b.maxX),
+      minY: Math.min(a.minY, b.minY),
+      maxY: Math.max(a.maxY, b.maxY)
+    };
+  }
+
+  _flattenBlock(blockLines) {
+    var items = [];
+    for (var i = 0; i < blockLines.length; i++) {
+      for (var j = 0; j < blockLines[i].length; j++) {
+        items.push(blockLines[i][j]);
+      }
+    }
+    return items;
+  }
+
+  _matchImagesToBlocks(blocks, images, pageWidth, pageHeight) {
+    // Match images to product blocks based on spatial proximity
+    var blockImages = {};
+    if (!images || !images.length) return blockImages;
+
+    // If we have position data for images, use spatial matching
+    var hasPositions = images[0] && typeof images[0].x === 'number';
+
+    if (hasPositions) {
+      for (var b = 0; b < blocks.length; b++) {
+        var bounds = blocks[b].bounds;
+        var blockCenterX = (bounds.minX + bounds.maxX) / 2;
+        var blockCenterY = (bounds.minY + bounds.maxY) / 2;
+        var blockWidth = bounds.maxX - bounds.minX;
+        var blockHeight = bounds.maxY - bounds.minY;
+
+        var bestImg = null;
+        var bestScore = Infinity;
+
+        for (var im = 0; im < images.length; im++) {
+          var img = images[im];
+          var imgCenterX = img.x + (img.width || 0) / 2;
+          var imgCenterY = img.y + (img.height || 0) / 2;
+
+          // Check if image center is within or near the block bounds (with margin)
+          var marginX = blockWidth * 0.5 + 50;
+          var marginY = blockHeight * 0.5 + 50;
+          var dx = Math.abs(imgCenterX - blockCenterX);
+          var dy = Math.abs(imgCenterY - blockCenterY);
+
+          if (dx < marginX && dy < marginY) {
+            var score = dx + dy;
+            if (score < bestScore) {
+              bestScore = score;
+              bestImg = img;
+            }
+          }
+        }
+
+        if (bestImg) {
+          blockImages[b] = [bestImg.url];
+        }
+      }
+    } else {
+      // Fallback: assign images sequentially to blocks
+      for (var b = 0; b < blocks.length && b < images.length; b++) {
+        blockImages[b] = [images[b].url || images[b]];
+      }
+    }
+
+    return blockImages;
+  }
+
+  _blockItemsToLines(blockItems) {
+    // Convert a cluster of positioned text items into text lines
+    var items = blockItems.filter(function(it) {
+      return it.str && it.str.trim().length > 0;
+    });
+    if (!items.length) return [];
+
+    // Sort by Y descending (top to bottom in PDF coords), then X ascending
+    items.sort(function(a, b) {
+      var ya = Math.round(a.transform[5]);
+      var yb = Math.round(b.transform[5]);
+      if (Math.abs(ya - yb) < 5) return a.transform[4] - b.transform[4];
+      return yb - ya;
+    });
+
+    // Group into lines by Y proximity
+    var lines = [];
+    var curLine = [items[0]];
+    var curY = Math.round(items[0].transform[5]);
+
+    for (var i = 1; i < items.length; i++) {
+      var y = Math.round(items[i].transform[5]);
+      if (Math.abs(y - curY) < 5) {
+        curLine.push(items[i]);
+      } else {
+        curLine.sort(function(a, b) { return a.transform[4] - b.transform[4]; });
+        var lineText = curLine.map(function(it) { return it.str; }).join(' ').replace(/\s+/g, ' ').trim();
+        lines.push(lineText);
+        curLine = [items[i]];
+        curY = y;
+      }
+    }
+    if (curLine.length) {
+      curLine.sort(function(a, b) { return a.transform[4] - b.transform[4]; });
+      var lineText = curLine.map(function(it) { return it.str; }).join(' ').replace(/\s+/g, ' ').trim();
+      lines.push(lineText);
+    }
+
+    return lines;
+  }
+
+  async _renderPDFRegion(page, bounds, viewport) {
+    // Render a specific rectangular region of a PDF page as a dataURL image
+    try {
+      var scale = viewport.scale || 1;
+      var regionWidth = (bounds.maxX - bounds.minX) * scale;
+      var regionHeight = (bounds.maxY - bounds.minY) * scale;
+
+      if (regionWidth < 10 || regionHeight < 10) return null;
+
+      var canvas = document.createElement('canvas');
+      canvas.width = Math.ceil(regionWidth);
+      canvas.height = Math.ceil(regionHeight);
+      var ctx = canvas.getContext('2d');
+
+      var fullViewport = page.getViewport({ scale: scale });
+      var viewBox = fullViewport.viewBox;
+      // viewBox = [x0, y0, x1, y1], pageHeight = viewBox[3] - viewBox[1]
+      var pageHeight = viewBox[3] - viewBox[1];
+
+      // Build transform that maps the region to canvas (0,0)
+      // pdf.js default transform: [scale, 0, 0, -scale, -viewBox[0]*scale, viewBox[3]*scale]
+      // We need to shift so bounds.minX maps to canvas-x=0 and bounds.minY maps to canvas-y=0
+      var origTransform = fullViewport.transform;
+      var newTransform = [
+        origTransform[0],  // a = scale
+        origTransform[1],  // b = 0
+        origTransform[2],  // c = 0
+        origTransform[3],  // d = -scale
+        -bounds.minX * scale,                    // e: translate X
+        (viewBox[3] - bounds.minY) * scale        // f: translate Y (PDF Y is bottom-up)
+      ];
+
+      // Create a derived viewport with the modified transform and region dimensions
+      var renderViewport = Object.create(fullViewport);
+      Object.defineProperty(renderViewport, 'transform', { value: newTransform, writable: false });
+      Object.defineProperty(renderViewport, 'width', { value: regionWidth, writable: false });
+      Object.defineProperty(renderViewport, 'height', { value: regionHeight, writable: false });
+
+      await page.render({
+        canvasContext: ctx,
+        viewport: renderViewport
+      }).promise;
+
+      return canvas.toDataURL('image/png');
+    } catch (e) {
+      console.warn('Region render failed:', e);
+      return null;
+    }
+  }
+
+  _extractPDFTextLines(textContent) {
+    var items = textContent.items.filter(function(it) {
+      return it.str && it.str.trim().length > 0;
+    });
+    if (!items.length) return [];
+
+    // Sort by vertical position (top to bottom), then horizontal (left to right)
+    items.sort(function(a, b) {
+      var ya = Math.round(a.transform[5]);
+      var yb = Math.round(b.transform[5]);
+      if (Math.abs(ya - yb) < 3) return a.transform[4] - b.transform[4];
+      return yb - ya;
+    });
+
+    // Group items into lines by Y proximity
+    var lines = [];
+    var curLine = [items[0]];
+    var curY = Math.round(items[0].transform[5]);
+
+    for (var i = 1; i < items.length; i++) {
+      var y = Math.round(items[i].transform[5]);
+      if (Math.abs(y - curY) < 5) {
+        curLine.push(items[i]);
+      } else {
+        curLine.sort(function(a, b) { return a.transform[4] - b.transform[4]; });
+        var lineText = curLine.map(function(it) { return it.str; }).join(' ').replace(/\s+/g, ' ').trim();
+        lines.push(lineText);
+        curLine = [items[i]];
+        curY = y;
+      }
+    }
+    if (curLine.length) {
+      curLine.sort(function(a, b) { return a.transform[4] - b.transform[4]; });
+      var lineText = curLine.map(function(it) { return it.str; }).join(' ').replace(/\s+/g, ' ').trim();
+      lines.push(lineText);
+    }
+
+    return lines;
+  }
+
+  _removeChineseSpaces(text) {
+    // Remove spaces between adjacent Chinese characters (PDF text extraction artifact)
+    var result = text;
+    var prev;
+    do {
+      prev = result;
+      result = result.replace(/([\u4e00-\u9fff\u3400-\u4dbf])\s+([\u4e00-\u9fff\u3400-\u4dbf])/g, '$1$2');
+    } while (result !== prev);
+    return result;
+  }
+
+  _extractPDFFields(textLines) {
+    var fields = {};
+
+    // Pre-process: remove spaces between Chinese characters
+    var processedLines = textLines.map(function(line) {
+      return this._removeChineseSpaces(line);
+    }.bind(this));
+
+    // Strategy 1: key:value pairs on a single line
+    var kvPattern = /([^\s:：,，;；]{2,}?)\s*[:：]\s*([^\s:：,，;；][^:：\n]*?)(?=\s{2,}|$)/g;
+    for (var i = 0; i < processedLines.length; i++) {
+      var line = processedLines[i];
+      var matches;
+      kvPattern.lastIndex = 0;
+      while ((matches = kvPattern.exec(line)) !== null) {
+        var key = matches[1].trim();
+        var value = matches[2].trim();
+        if (key && value && key.length < 30 && value.length < 200) {
+          fields[key] = value;
+        }
+      }
+    }
+
+    // Strategy 2: known field name followed by value (with optional separator)
+    var fieldNames = [
+      '编号','名称','品类','类别','材质','穴数','产品重量','成型周期','模架尺寸',
+      '模仁钢材','流道类型','图纸','序号','规格','尺寸','型号','数量','重量',
+      '颜色','表面处理','模架','模仁','钢材','穴号','模号',
+      '产品名','产品编号','模具名','模具编号','备注','说明',
+      '材料','原料','用料','产品分类','产品类型','产品类别',
+      '产品尺寸','外形尺寸','轮廓尺寸','大小','长宽高',
+      '容量','容积','容量规格','毫升','ml','ML'
+    ];
+    for (var i = 0; i < processedLines.length; i++) {
+      var line = processedLines[i];
+      for (var f = 0; f < fieldNames.length; f++) {
+        var fn = fieldNames[f];
+        if (fields[fn]) continue;
+        var regex = new RegExp(fn.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[:：=]?\\s*([^\\n:：]{1,100})');
+        var m = line.match(regex);
+        if (m && m[1] && m[1].trim()) {
+          fields[fn] = m[1].trim();
+        }
+      }
+    }
+
+    // Strategy 3: auto-detect dimension patterns (e.g. 100×200×50mm, 100*200*50, L100 W200 H50)
+    if (!fields['尺寸'] && !fields['规格']) {
+      var dimPatterns = [
+        /(\d+(?:\.\d+)?)\s*[×xX*]\s*(\d+(?:\.\d+)?)\s*[×xX*]\s*(\d+(?:\.\d+)?)/,
+        /(\d+(?:\.\d+)?)\s*[×xX*]\s*(\d+(?:\.\d+)?)/,
+        /[Ll长]\s*[=:]\s*(\d+(?:\.\d+)?)\s*.*?[Ww宽]\s*[=:]\s*(\d+(?:\.\d+)?)\s*.*?[Hh高]\s*[=:]\s*(\d+(?:\.\d+)?)/
+      ];
+      for (var i = 0; i < processedLines.length; i++) {
+        var line = processedLines[i];
+        for (var d = 0; d < dimPatterns.length; d++) {
+          var dm = line.match(dimPatterns[d]);
+          if (dm) {
+            var dimVal = dm[0].trim();
+            // Check if this line also has a dimension-related keyword nearby
+            if (/尺寸|规格|大小|长宽|外形|轮廓|Dimension|Size/i.test(line) || d < 2) {
+              fields['尺寸'] = dimVal;
+              break;
+            }
+          }
+        }
+        if (fields['尺寸']) break;
+      }
+    }
+
+    // Strategy 4: auto-detect material keywords in text
+    if (!fields['材质']) {
+      var materialKeywords = ['ABS','PC','PP','PE','POM','PA66','PA6','PBT','PMMA','PVC','TPU','TPE',
+        '尼龙','塑胶','塑料','橡胶','硅胶','铝合金','不锈钢','铜','铁','钢','H13','S136','NAK80','718H','P20'];
+      for (var i = 0; i < processedLines.length; i++) {
+        var line = processedLines[i];
+        // First: check for general material label pattern (e.g. "材质: ABS+PC")
+        var mRegex = /(?:材质|材料|用料|原料|Material)[:：=]?\s*(.{1,50})/;
+        var mm = line.match(mRegex);
+        if (mm) {
+          fields['材质'] = mm[1].trim();
+          break;
+        }
+        // Second: check if any known material keyword appears near a material label
+        for (var m = 0; m < materialKeywords.length; m++) {
+          var mk = materialKeywords[m];
+          var labelRegex = new RegExp('(?:材质|材料|用料|原料)[:：=]?\\s*' + mk.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(\\S{0,30})');
+          var lm = line.match(labelRegex);
+          if (lm) {
+            fields['材质'] = (mk + lm[1]).trim();
+            break;
+          }
+        }
+        if (fields['材质']) break;
+      }
+    }
+
+    return fields;
+  }
+
+  _normalizeFieldName(raw) {
+    var s = raw.replace(/\s+/g, '').trim();
+    var mapping = [
+      { pattern: /编号|序号|模具号|模号|穴号|ID|No|号码|产品编号|模具编号/, name: '编号' },
+      { pattern: /名称|模具名|产品名|品名|名字|名称/, name: '名称' },
+      { pattern: /品类|类别|分类|类型|种类|产品类型|产品分类|产品类别/, name: '类别' },
+      { pattern: /材质|材料|用料|原料|钢材型号|Material/, name: '材质' },
+      { pattern: /穴数|模穴|穴|腔数/, name: '穴数' },
+      { pattern: /产品重量|重量|重|净重|克重/, name: '产品重量(g)' },
+      { pattern: /成型周期|周期|节拍|Cycle/, name: '成型周期(s)' },
+      { pattern: /模架尺寸|模架|模板尺寸/, name: '模架尺寸(mm)' },
+      { pattern: /模仁钢材|模仁|钢材|模仁材料/, name: '模仁钢材' },
+      { pattern: /流道|浇口|热流道|冷流道|流道类型/, name: '流道类型' },
+      { pattern: /尺寸|规格|大小|长宽高|外形尺寸|轮廓尺寸|产品尺寸|Dimension|Size/, name: '规格' },
+      { pattern: /型号|型式|款式|Model/, name: '型号' },
+      { pattern: /数量|个数|件数/, name: '数量' },
+      { pattern: /容量|容积|容量规格|毫升|ml$|ML$|Capacit/, name: '容量' },
+      { pattern: /颜色|色彩|色号|色/, name: '颜色' },
+      { pattern: /备注|说明|注释|附注|Memo/, name: '备注' }
+    ];
+    for (var i = 0; i < mapping.length; i++) {
+      if (mapping[i].pattern.test(s)) return mapping[i].name;
+    }
+    return raw.trim();
+  }
+
+  _parseTableRecords(textLines) {
+    var records = [];
+    if (!textLines.length) return records;
+
+    // Find header line (contains multiple known field keywords)
+    var headerIdx = -1;
+    var headerFields = [];
+    var fieldKeywords = ['编号','名称','品类','类别','材质','穴数','重量','周期','模架','模仁','流道','规格','尺寸','型号','数量','颜色','容量'];
+
+    for (var i = 0; i < textLines.length; i++) {
+      var line = this._removeChineseSpaces(textLines[i]);
+      var found = [];
+      for (var k = 0; k < fieldKeywords.length; k++) {
+        if (line.indexOf(fieldKeywords[k]) >= 0) found.push(fieldKeywords[k]);
+      }
+      if (found.length >= 3 && found.length > headerFields.length) {
+        headerFields = found;
+        headerIdx = i;
+      }
+    }
+
+    if (headerIdx < 0) return records;
+
+    // Parse data rows after header
+    for (var i = headerIdx + 1; i < textLines.length; i++) {
+      var line = this._removeChineseSpaces(textLines[i]);
+      if (!line.trim()) continue;
+
+      // Split by common table separators
+      var parts = null;
+      if (line.indexOf('|') >= 0) {
+        parts = line.split('|').map(function(s) { return s.trim(); }).filter(function(s) { return s; });
+      } else if (/\s{3,}/.test(line)) {
+        parts = line.split(/\s{3,}/).map(function(s) { return s.trim(); }).filter(function(s) { return s; });
+      } else if (/\t/.test(line)) {
+        parts = line.split('\t').map(function(s) { return s.trim(); }).filter(function(s) { return s; });
+      }
+
+      if (parts && parts.length >= 2) {
+        var record = {};
+        for (var j = 0; j < headerFields.length && j < parts.length; j++) {
+          var normName = this._normalizeFieldName(headerFields[j]);
+          record[normName] = parts[j];
+        }
+        if (Object.keys(record).length > 0) records.push(record);
+      }
+    }
+
+    return records;
+  }
+
+  /* ========== Main App Entry ========== */
+  enterMainApp() {
+    document.getElementById('main-app').style.display = '';
+    if (this.state.searchConditions.length === 0) {
+      this.addCondition();
+    } else {
+      // Always re-render conditions to update field dropdown with current headers
+      this.renderConditions();
+    }
+    this.renderAllData();
+  }
+
+  renderAllData() {
+    var results = [];
+    for (var i = 0; i < this.state.rawData.length; i++) {
+      results.push({ index: i, data: this.state.rawData[i], score: 0, matchFields: 0 });
+    }
+    // Reset navigation state
+    this.state.navPath = [];
+    this.state.navLevel = 0;
+    this.renderGroupedData(results, '全部数据');
+  }
+
+  navigateTo(level, value) {
+    // Handle returning to main page (level = -1)
+    if (level < 0) {
+      this.state.navPath = [];
+      this.state.navLevel = 0;
+    } else {
+      // Update navigation path
+      this.state.navPath = this.state.navPath.slice(0, level);
+      this.state.navPath.push({ level: this.getLevelName(level), value: value });
+      this.state.navLevel = level + 1;
+    }
+    
+    // Re-render with filtered data
+    var results = [];
+    for (var i = 0; i < this.state.rawData.length; i++) {
+      results.push({ index: i, data: this.state.rawData[i], score: 0, matchFields: 0 });
+    }
+    this.renderGroupedData(results, '全部数据');
+  }
+
+  navigateBack() {
+    if (this.state.navPath.length > 0) {
+      this.state.navPath.pop();
+      this.state.navLevel = Math.max(0, this.state.navLevel - 1);
+    } else {
+      this.state.navLevel = 0;
+    }
+    
+    var results = [];
+    for (var i = 0; i < this.state.rawData.length; i++) {
+      results.push({ index: i, data: this.state.rawData[i], score: 0, matchFields: 0 });
+    }
+    this.renderGroupedData(results, '全部数据');
+  }
+
+  getLevelName(level) {
+    var names = ['category', 'capacity', 'material'];
+    return names[level] || 'products';
+  }
+
+  getLevelLabel(level) {
+    var labels = ['品类', '容量', '材质'];
+    return labels[level] || '产品';
+  }
+
+  getColumnForLevel(level) {
+    var categoryCol = null;
+    var capacityCol = null;
+    var materialCol = null;
+    
+    for (var h = 0; h < this.state.headers.length; h++) {
+      var col = this.state.headers[h];
+      if (col === '品类' || col === '类别' || col === '分类') categoryCol = col;
+      if (col === '容量' || col === '规格') capacityCol = col;
+      if (col === '材质' || col === '材料') materialCol = col;
+    }
+    
+    var cols = [categoryCol, capacityCol, materialCol];
+    return cols[level] || null;
+  }
+
+  filterDataByNavPath(results) {
+    var filtered = results;
+    for (var i = 0; i < this.state.navPath.length; i++) {
+      var nav = this.state.navPath[i];
+      var col = this.getColumnForLevel(i);
+      if (col) {
+        filtered = filtered.filter(function(r) {
+          return r.data[col] === nav.value;
+        });
+      }
+    }
+    return filtered;
+  }
+
+  renderGroupedData(results, title) {
+    var header = document.getElementById('resultsHeader');
+    var content = document.getElementById('resultsContent');
+    var countEl = document.getElementById('resultsCount');
+
+    header.style.display = 'flex';
+    if (title) header.querySelector('h2').textContent = title;
+    else header.querySelector('h2').textContent = '搜索结果';
+    
+    var filtered = this.filterDataByNavPath(results);
+    countEl.textContent = '共 ' + filtered.length + ' 条结果';
+
+    if (!filtered.length) {
+      content.innerHTML =
+        '<div class="empty-state">' +
+        '<div class="icon">&#128533;</div>' +
+        '<h3>未找到匹配结果</h3>' +
+        '<p>尝试减少搜索条件或放宽匹配规则</p>' +
+        '</div>';
+      return;
+    }
+
+    // Build breadcrumb navigation
+    var breadcrumbHtml = '<div class="breadcrumb-nav">';
+    breadcrumbHtml += '<span class="breadcrumb-item' + (this.state.navPath.length === 0 ? ' active' : '') + '" onclick="app.navigateTo(-1)">全部</span>';
+    for (var i = 0; i < this.state.navPath.length; i++) {
+      var nav = this.state.navPath[i];
+      var isLast = i === this.state.navPath.length - 1;
+      breadcrumbHtml += '<span class="breadcrumb-separator">/</span>';
+      if (isLast) {
+        breadcrumbHtml += '<span class="breadcrumb-item active">' + this.esc(nav.value) + '</span>';
+      } else {
+        breadcrumbHtml += '<span class="breadcrumb-item" onclick="app.navigateBackTo(' + i + ')">' + this.esc(nav.value) + '</span>';
+      }
+    }
+    breadcrumbHtml += '</div>';
+
+    // If at product level (navLevel >= 3), show cards directly
+    if (this.state.navLevel >= 3) {
+      var html = breadcrumbHtml;
+      html += '<div class="results-grid">';
+      for (var r = 0; r < filtered.length; r++) {
+        html += this.renderCard(filtered[r]);
+      }
+      html += '</div>';
+      content.innerHTML = html;
+      return;
+    }
+
+    // Group data by current level
+    var currentCol = this.getColumnForLevel(this.state.navLevel);
+    var groups = {};
+    
+    for (var r = 0; r < filtered.length; r++) {
+      var res = filtered[r];
+      var rawValue = currentCol ? res.data[currentCol] : null;
+      // Treat null, undefined, empty string, and whitespace-only as '未指定'
+      var value = (rawValue && String(rawValue).trim()) ? String(rawValue).trim() : (currentCol ? '未指定' : '全部');
+      if (!groups[value]) groups[value] = [];
+      groups[value].push(res);
+    }
+
+    var html = breadcrumbHtml;
+    html += '<div class="nav-grid">';
+    
+    var values = Object.keys(groups);
+    for (var v = 0; v < values.length; v++) {
+      var value = values[v];
+      var count = groups[value].length;
+      var item = groups[value][0]; // Get first item for thumbnail
+      
+      // Escape both single quotes and backslashes for onclick handler
+      var escapedValue = this.esc(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      html += '<div class="nav-card" onclick="app.navigateTo(' + this.state.navLevel + ', \'' + escapedValue + '\')">';
+      
+      // Show thumbnail if available
+      var images = this.state.rowImages[item.index] || [];
+      var thumb = images.length > 0 ? images[0] : null;
+      if (thumb) {
+        html += '<div class="nav-thumb"><img src="' + thumb + '" alt="' + this.esc(value) + '" loading="lazy"></div>';
+      } else {
+        html += '<div class="nav-thumb no-thumb"><span class="nav-icon">📁</span></div>';
+      }
+      
+      html += '<div class="nav-info">';
+      html += '<div class="nav-title">' + this.esc(value) + '</div>';
+      html += '<div class="nav-count">' + count + ' 条</div>';
+      html += '</div>';
+      html += '</div>';
+    }
+    
+    html += '</div>';
+    content.innerHTML = html;
+  }
+
+  navigateBackTo(index) {
+    this.state.navPath = this.state.navPath.slice(0, index + 1);
+    this.state.navLevel = index + 1;
+    
+    var results = [];
+    for (var i = 0; i < this.state.rawData.length; i++) {
+      results.push({ index: i, data: this.state.rawData[i], score: 0, matchFields: 0 });
+    }
+    this.renderGroupedData(results, '全部数据');
+  }
+
+  renderCard(res) {
+    var images = this.state.rowImages[res.index] || [];
+    var thumb = images.length > 0 ? images[0] : null;
+    var nameCol = this.state.columnMapping.name || this.state.headers[0];
+    var name = res.data[nameCol] || '未命名';
+
+    var displayFields = [];
+    var skipCols = {};
+    if (this.state.columnMapping.name) skipCols[this.state.columnMapping.name] = true;
+    if (this.state.columnMapping.category) skipCols[this.state.columnMapping.category] = true;
+    if (this.state.columnMapping.subcategory) skipCols[this.state.columnMapping.subcategory] = true;
+    // Skip grouping columns
+    for (var h = 0; h < this.state.headers.length; h++) {
+      var col = this.state.headers[h];
+      if (col === '品类' || col === '类别' || col === '分类') skipCols[col] = true;
+      if (col === '容量' || col === '规格') skipCols[col] = true;
+      if (col === '材质' || col === '材料') skipCols[col] = true;
+    }
+
+    for (var h = 0; h < this.state.headers.length && displayFields.length < 3; h++) {
+      if (!skipCols[this.state.headers[h]]) {
+        displayFields.push({ key: this.state.headers[h], val: res.data[this.state.headers[h]] });
+      }
+    }
+
+    var isSelected = this.state.selectedForDelete[res.index];
+    var cardClass = 'result-card' + (isSelected ? ' selected' : '');
+    var clickHandler = this.state.manageMode
+      ? 'onclick="app.toggleDeleteSelection(' + res.index + ')"'
+      : 'onclick="app.showDetail(' + res.index + ')"';
+    
+    var html = '<div class="' + cardClass + '" data-index="' + res.index + '" ' + clickHandler + '>';
+    if (this.state.manageMode) {
+      html += '<input type="checkbox" class="card-check" data-index="' + res.index + '" ' +
+        (isSelected ? 'checked' : '') +
+        ' onclick="event.stopPropagation();app.toggleDeleteSelection(' + res.index + ')">';
+    }
+    html += '<div class="thumb">';
+    if (thumb) {
+      html += '<img src="' + thumb + '" alt="图纸" loading="lazy">';
+    } else {
+      html += '<span class="no-image">&#128194; 无图纸</span>';
+    }
+    if (res.imgScore >= 0) {
+      var similarity = res.imgScore;
+      var color = similarity >= 85 ? '#10b981' : similarity >= 70 ? '#3b82f6' : similarity >= 50 ? '#f59e0b' : '#ef4444';
+      html += '<span class="similarity-badge" style="background:' + color + '">' + similarity + '% 相似</span>';
+    }
+    html += '</div>';
+    html += '<div class="info">';
+    html += '<div class="title">' + this.esc(name) + '</div>';
+    for (var f = 0; f < displayFields.length; f++) {
+      html += '<div class="field">' + this.esc(displayFields[f].key) + ': <span>' + this.esc(displayFields[f].val) + '</span></div>';
+    }
+    if (res.matchFields > 0) {
+      html += '<div class="field" style="color:var(--primary);margin-top:4px">匹配 ' + res.matchFields + ' 个条件</div>';
+    }
+    html += '</div></div>';
+    return html;
+  }
+
+  /* ========== Search Conditions ========== */
+  addCondition() {
+    var id = this.state.conditionIdCounter++;
+    this.state.searchConditions.push({ id: id, column: '', operator: 'contains', value: '' });
+    this.renderConditions();
+  }
+
+  removeCondition(id) {
+    this.state.searchConditions = this.state.searchConditions.filter(function(c) { return c.id !== id; });
+    this.renderConditions();
+  }
+
+  updateCondition(id, field, value) {
+    var cond = this.state.searchConditions.find(function(c) { return c.id === id; });
+    if (cond) cond[field] = value;
+  }
+
+  renderConditions() {
+    var container = document.getElementById('searchConditions');
+    var headers = this.state.headers;
+    var operators = [
+      { value: 'contains', label: '包含' },
+      { value: 'exact', label: '精确匹配' },
+      { value: 'startsWith', label: '开头是' },
+      { value: 'endsWith', label: '结尾是' },
+      { value: 'gt', label: '大于' },
+      { value: 'lt', label: '小于' }
+    ];
+
+    var html = '';
+    this.state.searchConditions.forEach(function(cond) {
+      html += '<div class="condition-card" data-id="' + cond.id + '">';
+      html += '<button class="condition-remove" onclick="app.removeCondition(' + cond.id + ')">&times;</button>';
+      html += '<div class="condition-row">';
+      html += '<select onchange="app.updateCondition(' + cond.id + ',\'column\',this.value)">';
+      html += '<option value="">选择字段</option>';
+      headers.forEach(function(h) {
+        var sel = cond.column === h ? ' selected' : '';
+        html += '<option value="' + app.esc(h) + '"' + sel + '>' + app.esc(h) + '</option>';
+      });
+      html += '</select>';
+      html += '<select onchange="app.updateCondition(' + cond.id + ',\'operator\',this.value)">';
+      operators.forEach(function(op) {
+        var sel = cond.operator === op.value ? ' selected' : '';
+        html += '<option value="' + op.value + '"' + sel + '>' + op.label + '</option>';
+      });
+      html += '</select>';
+      html += '</div>';
+      html += '<div class="condition-row">';
+      html += '<input type="text" placeholder="输入搜索值..." value="' + this.esc(cond.value) + '" oninput="app.updateCondition(' + cond.id + ',\'value\',this.value)" onkeydown="if(event.key===\'Enter\')app.executeSearch()">';
+      html += '</div>';
+      html += '</div>';
+    }.bind(this));
+
+    container.innerHTML = html;
+  }
+
+  /* ========== Image Search ========== */
+  async handleImageUpload(file) {
+    if (!file || !file.type.startsWith('image/')) {
+      this.toast('请上传图片文件', 'error');
+      return;
+    }
+    this.showLoading('正在分析图纸...');
+
+    var dataUrl = await this._blobToDataURL(file);
+    var hashes = await this.computeImageHashes(dataUrl);
+    this.state.queryImageHashes = hashes;
+    this.state.queryImageUrl = dataUrl;
+    
+    // Compute self-similarity baseline for normalization
+    // This ensures identical images score 100%
+    this.state.querySelfSimilarity = this.combinedSimilarity(hashes, hashes);
+    console.log('[IMAGE_SEARCH] Self-similarity baseline:', this.state.querySelfSimilarity.toFixed(1));
+
+    // Show preview
+    document.getElementById('imagePreviewArea').innerHTML =
+      '<div class="image-preview-container">' +
+      '<img src="' + dataUrl + '" alt="查询图纸">' +
+      '<button class="image-preview-remove" onclick="app.clearImageQuery()">&times;</button>' +
+      '</div>';
+    document.getElementById('similarityControl').style.display = 'block';
+    document.getElementById('searchByImageBtn').style.display = 'block';
+
+    this.hideLoading();
+    this.toast('图纸已加载，点击"以图搜图"开始检索', 'success');
+  }
+
+  clearImageQuery() {
+    this.state.queryImageHashes = null;
+    this.state.queryImageUrl = null;
+    this.state.querySelfSimilarity = null;
+    document.getElementById('imagePreviewArea').innerHTML = '';
+    document.getElementById('similarityControl').style.display = 'none';
+    document.getElementById('searchByImageBtn').style.display = 'none';
+  }
+
+  updateThresholdLabel() {
+    var v = document.getElementById('similarityThreshold').value;
+    document.getElementById('thresholdLabel').textContent = '相似度 \u2265 ' + v + '%';
+  }
+
+  /* ========== Search Execution ========== */
+  async executeSearch() {
+    var conditions = this.state.searchConditions.filter(function(c) {
+      return c.column && c.value.trim() !== '';
+    });
+    var hasImageQuery = this.state.queryImageHashes != null;
+
+    if (!conditions.length && !hasImageQuery) {
+      this.toast('请添加搜索条件或上传图纸', 'info');
+      return;
+    }
+
+    this.showLoading('正在检索...');
+    var self = this;
+
+    // Use setTimeout to allow loading UI to render
+    setTimeout(async function() {
+      var results = [];
+      var data = self.state.rawData;
+      var threshold = parseInt(document.getElementById('similarityThreshold').value);
+
+      for (var i = 0; i < data.length; i++) {
+        var row = data[i];
+        var matchFields = 0;
+        var allMatch = true;
+
+        // Text conditions
+        for (var c = 0; c < conditions.length; c++) {
+          var cond = conditions[c];
+          var cellVal = self.norm(row[cond.column]);
+          var searchVal = self.norm(cond.value);
+          var matched = false;
+
+          switch (cond.operator) {
+            case 'contains':  matched = cellVal.indexOf(searchVal) >= 0; break;
+            case 'exact':     matched = cellVal === searchVal; break;
+            case 'startsWith':matched = cellVal.indexOf(searchVal) === 0; break;
+            case 'endsWith':  matched = cellVal.length >= searchVal.length && cellVal.indexOf(searchVal) === cellVal.length - searchVal.length; break;
+            case 'gt':        matched = parseFloat(cellVal) > parseFloat(searchVal); break;
+            case 'lt':        matched = parseFloat(cellVal) < parseFloat(searchVal); break;
+            default:          matched = cellVal.indexOf(searchVal) >= 0;
+          }
+
+          if (matched) matchFields++;
+          else allMatch = false;
+        }
+
+        // Image similarity (multi-crop comparison for better accuracy)
+        var imgScore = -1;
+        if (hasImageQuery) {
+          var targetUrls = self.state.rowImages[i];
+          if (targetUrls && targetUrls.length) {
+            // Use multi-crop comparison: try multiple regions and use best score
+            // This handles cases where query is cropped/zoomed version of target
+            var maxSim = 0;
+            for (var h = 0; h < targetUrls.length; h++) {
+              var sim = await self.computeMultiCropSimilarity(
+                self.state.queryImageHashes,
+                targetUrls[h]
+              );
+              // Note: normalization is done inside computeMultiCropSimilarity
+              if (sim > maxSim) maxSim = sim;
+            }
+            imgScore = Math.round(maxSim);
+          }
+        }
+
+        // Determine if this row should be included
+        var include = false;
+        if (conditions.length > 0 && hasImageQuery) {
+          // Both text and image: text matches AND similarity >= threshold
+          include = allMatch && matchFields > 0 && imgScore >= threshold;
+        } else if (conditions.length > 0) {
+          // Text only: all conditions must match
+          include = allMatch && matchFields > 0;
+        } else if (hasImageQuery) {
+          // Image only: similarity >= threshold
+          include = imgScore >= threshold;
+        }
+
+        if (include) {
+          results.push({
+            index: i,
+            data: row,
+            matchFields: matchFields,
+            imgScore: imgScore
+          });
+        }
+      }
+
+      // Sort: by matchFields desc, then by imgScore desc (higher = more similar)
+      results.sort(function(a, b) {
+        if (b.matchFields !== a.matchFields) return b.matchFields - a.matchFields;
+        if (a.imgScore >= 0 && b.imgScore >= 0) return b.imgScore - a.imgScore;
+        return 0;
+      });
+
+      // Debug logging: show top 5 scores
+      if (hasImageQuery && results.length > 0) {
+        console.log('[IMAGE_SEARCH] Top 5 results:');
+        for (var i = 0; i < Math.min(5, results.length); i++) {
+          console.log('  Result ' + (i+1) + ': imgScore=' + results[i].imgScore + '%, index=' + results[i].index);
+        }
+      } else if (hasImageQuery) {
+        console.log('[IMAGE_SEARCH] No results found. Threshold=' + threshold + '%');
+        console.log('[IMAGE_SEARCH] Query hashes:', self.state.queryImageHashes);
+      }
+
+      self.hideLoading();
+      self.renderResults(results);
+    }, 50);
+  }
+
+  clearSearch() {
+    this.state.searchConditions = [];
+    this.clearImageQuery();
+    this.addCondition();
+    this.renderAllData();
+  }
+
+  /* ========== Results Rendering ========== */
+  renderResults(results, title) {
+    var header = document.getElementById('resultsHeader');
+    var content = document.getElementById('resultsContent');
+    var countEl = document.getElementById('resultsCount');
+
+    header.style.display = 'flex';
+    if (title) header.querySelector('h2').textContent = title;
+    else header.querySelector('h2').textContent = '搜索结果';
+    countEl.textContent = '共 ' + results.length + ' 条结果';
+
+    if (!results.length) {
+      content.innerHTML =
+        '<div class="empty-state">' +
+        '<div class="icon">&#128533;</div>' +
+        '<h3>未找到匹配结果</h3>' +
+        '<p>尝试减少搜索条件或放宽匹配规则</p>' +
+        '</div>';
+      return;
+    }
+
+    var display = results.slice(0, this.state.maxResults);
+    var html = '<div class="results-grid">';
+
+    for (var r = 0; r < display.length; r++) {
+      html += this.renderCard(display[r]);
+    }
+
+    html += '</div>';
+
+    if (results.length > this.state.maxResults) {
+      html += '<div style="text-align:center;padding:20px;color:var(--text2)">仅显示前 ' + this.state.maxResults + ' 条，共 ' + results.length + ' 条结果</div>';
+    }
+
+    content.innerHTML = html;
+  }
+
+  /* ========== Detail Modal ========== */
+  showDetail(index) {
+    var row = this.state.rawData[index];
+    var images = this.state.rowImages[index] || [];
+    var nameCol = this.state.columnMapping.name || this.state.headers[0];
+    var name = row[nameCol] || '未命名';
+
+    document.getElementById('modalTitle').textContent = name;
+
+    var html = '<div class="detail-grid">';
+    for (var i = 0; i < this.state.headers.length; i++) {
+      var key = this.state.headers[i];
+      var val = row[key];
+      html += '<div class="detail-field">';
+      html += '<div class="label">' + this.esc(key) + '</div>';
+      html += '<div class="value">' + this.esc(val) + '</div>';
+      html += '</div>';
+    }
+    html += '</div>';
+
+    if (images.length) {
+      html += '<div class="detail-images">';
+      html += '<h3>&#128203; 图纸 (' + images.length + ')</h3>';
+      html += '<div class="detail-images-grid">';
+      for (var i = 0; i < images.length; i++) {
+        html += '<img src="' + images[i] + '" alt="图纸 ' + (i+1) + '" onclick="event.stopPropagation();app.openImageViewer(\'' + i + '\',' + index + ')">';
+      }
+      html += '</div></div>';
+    }
+
+    document.getElementById('modalBody').innerHTML = html;
+    document.getElementById('detailModal').classList.add('active');
+  }
+
+  closeModal() {
+    document.getElementById('detailModal').classList.remove('active');
+  }
+
+  openImageViewer(imgIdx, dataIdx) {
+    var images = this.state.rowImages[dataIdx] || [];
+    var idx = parseInt(imgIdx);
+    if (images[idx]) {
+      document.getElementById('viewerImage').src = images[idx];
+      document.getElementById('imageViewer').classList.add('active');
+    }
+  }
+
+  closeImageViewer() {
+    document.getElementById('imageViewer').classList.remove('active');
+  }
+
+  /* ========== Password & Upload Modal ========== */
+  showPasswordModal() {
+    try {
+      var modal = document.getElementById('passwordModal');
+      if (modal) {
+        modal.classList.add('active');
+        document.getElementById('passwordInput').value = '';
+        document.getElementById('passwordError').style.display = 'none';
+        setTimeout(function() { document.getElementById('passwordInput').focus(); }, 100);
+      } else {
+        console.error('passwordModal element not found');
+      }
+    } catch (e) {
+      console.error('showPasswordModal error:', e);
+    }
+  }
+
+  closePasswordModal() {
+    document.getElementById('passwordModal').classList.remove('active');
+    // Don't clear pending file/sync here - they should be retried or cleared explicitly
+  }
+
+  showMaintenanceModal() {
+    var hasData = this.state.rawData.length > 0;
+    document.getElementById('maintManageBtn').style.display = hasData ? '' : 'none';
+    document.getElementById('maintClearBtn').style.display = hasData ? '' : 'none';
+    document.getElementById('maintExportBtn').style.display = hasData ? '' : 'none';
+    document.getElementById('maintenanceModal').classList.add('active');
+  }
+
+  closeMaintenanceModal() {
+    document.getElementById('maintenanceModal').classList.remove('active');
+  }
+
+  async verifyPassword() {
+    var pwd = document.getElementById('passwordInput').value;
+    var success = await this._verifyPassword(pwd);
+    if (success) {
+      this.passwordVerified = true;
+      this.closePasswordModal();
+      // Handle pending file import
+      if (this._pendingFile) {
+        var file = this._pendingFile;
+        this._pendingFile = null;
+        this.toast('密码正确，正在导入...', 'info');
+        await this.processFile(file);
+        return;
+      }
+      this.showMaintenanceModal();
+    } else {
+      document.getElementById('passwordError').style.display = 'block';
+      document.getElementById('passwordInput').value = '';
+      document.getElementById('passwordInput').focus();
+    }
+  }
+
+  showUploadModal() {
+    document.getElementById('uploadModal').classList.add('active');
+    // Show import mode section when data exists
+    var hasData = this.state.rawData.length > 0;
+    document.getElementById('importModeSection').style.display = hasData ? '' : 'none';
+    if (hasData) {
+      document.getElementById('existingDataCount').textContent = this.state.rawData.length;
+      // Default to append mode
+      var radios = document.querySelectorAll('input[name="importMode"]');
+      for (var i = 0; i < radios.length; i++) {
+        radios[i].checked = (radios[i].value === 'append');
+      }
+    }
+  }
+
+  closeUploadModal() {
+    document.getElementById('uploadModal').classList.remove('active');
+  }
+
+  /* ========== Manage Mode ========== */
+  toggleManageMode() {
+    if (this.state.manageMode) {
+      this.exitManageMode();
+    } else {
+      this.state.manageMode = true;
+      this.state.selectedForDelete = {};
+      this.renderManageBar();
+      this.renderAllData();
+    }
+  }
+
+  exitManageMode() {
+    this.state.manageMode = false;
+    this.state.selectedForDelete = {};
+    var bar = document.getElementById('manageBar');
+    if (bar) bar.remove();
+    this.renderAllData();
+  }
+
+  renderManageBar() {
+    // Remove existing bar if any
+    var existing = document.getElementById('manageBar');
+    if (existing) existing.remove();
+
+    var bar = document.createElement('div');
+    bar.id = 'manageBar';
+    bar.className = 'manage-bar';
+    bar.innerHTML = '<div class="info">管理模式 — 勾选要删除的记录，然后点击删除</div>' +
+      '<div class="actions">' +
+      '<button class="btn btn-sm" onclick="app.selectAllForDelete()">全选</button>' +
+      '<button class="btn btn-sm" onclick="app.deselectAllForDelete()">取消全选</button>' +
+      '<button class="btn btn-sm" style="background:var(--primary);color:#fff;border-color:var(--primary)" onclick="app.editSelected()">&#9998; 编辑选中</button>' +
+      '<button class="btn btn-sm" style="background:var(--danger);color:#fff;border-color:var(--danger)" onclick="app.deleteSelected()">&#128465; 删除选中</button>' +
+      '<button class="btn btn-sm" onclick="app.exitManageMode()">退出管理</button>' +
+      '</div>';
+
+    // Insert after header, before app-body
+    var header = document.querySelector('.app-header');
+    var appBody = document.querySelector('.app-body');
+    if (header && appBody) {
+      header.parentNode.insertBefore(bar, appBody);
+    }
+  }
+
+  updateManageBar() {
+    var bar = document.getElementById('manageBar');
+    if (bar) {
+      var count = Object.keys(this.state.selectedForDelete).length;
+      bar.querySelector('.info').textContent = '管理模式 — 已选中 ' + count + ' 条记录';
+    }
+  }
+
+  toggleDeleteSelection(index) {
+    if (this.state.selectedForDelete[index]) {
+      delete this.state.selectedForDelete[index];
+    } else {
+      this.state.selectedForDelete[index] = true;
+    }
+    // Update card visual
+    var cards = document.querySelectorAll('.result-card[data-index="' + index + '"]');
+    for (var i = 0; i < cards.length; i++) {
+      if (this.state.selectedForDelete[index]) {
+        cards[i].classList.add('selected');
+      } else {
+        cards[i].classList.remove('selected');
+      }
+    }
+    // Update checkbox
+    var checks = document.querySelectorAll('.card-check[data-index="' + index + '"]');
+    for (var i = 0; i < checks.length; i++) {
+      checks[i].checked = !!this.state.selectedForDelete[index];
+    }
+    this.updateManageBar();
+  }
+
+  selectAllForDelete() {
+    var results = document.querySelectorAll('.result-card[data-index]');
+    for (var i = 0; i < results.length; i++) {
+      var idx = parseInt(results[i].getAttribute('data-index'));
+      this.state.selectedForDelete[idx] = true;
+      results[i].classList.add('selected');
+      var checks = results[i].querySelectorAll('.card-check');
+      for (var j = 0; j < checks.length; j++) checks[j].checked = true;
+    }
+    this.updateManageBar();
+  }
+
+  deselectAllForDelete() {
+    this.state.selectedForDelete = {};
+    var cards = document.querySelectorAll('.result-card');
+    for (var i = 0; i < cards.length; i++) {
+      cards[i].classList.remove('selected');
+      var checks = cards[i].querySelectorAll('.card-check');
+      for (var j = 0; j < checks.length; j++) checks[j].checked = false;
+    }
+    this.updateManageBar();
+  }
+
+  async deleteSelected() {
+    var indices = Object.keys(this.state.selectedForDelete).map(Number);
+    if (!indices.length) {
+      this.toast('请先勾选要删除的记录', 'info');
+      return;
+    }
+    if (!confirm('确定要删除选中的 ' + indices.length + ' 条记录吗？')) return;
+
+    // Sort indices descending so removal doesn't shift later indices
+    indices.sort(function(a, b) { return b - a; });
+
+    var deleteSet = {};
+    indices.forEach(function(i) { deleteSet[i] = true; });
+
+    // Rebuild rawData
+    var newData = [];
+    var oldToNew = {}; // old index → new index
+    for (var i = 0; i < this.state.rawData.length; i++) {
+      if (!deleteSet[i]) {
+        oldToNew[i] = newData.length;
+        newData.push(this.state.rawData[i]);
+      }
+    }
+
+    // Rebuild rowImages and imageHashes
+    var newImages = {};
+    var newHashes = {};
+    for (var k in this.state.rowImages) {
+      var ki = parseInt(k);
+      if (!deleteSet[ki] && oldToNew[ki] !== undefined) {
+        newImages[oldToNew[ki]] = this.state.rowImages[k];
+      }
+    }
+    for (var k in this.state.imageHashes) {
+      var ki = parseInt(k);
+      if (!deleteSet[ki] && oldToNew[ki] !== undefined) {
+        newHashes[oldToNew[ki]] = this.state.imageHashes[k];
+      }
+    }
+
+    this.state.rawData = newData;
+    this.state.rowImages = newImages;
+    this.state.imageHashes = newHashes;
+    this.state.selectedForDelete = {};
+
+    this.toast('已删除 ' + indices.length + ' 条记录，剩余 ' + newData.length + ' 条', 'success');
+
+    // Update UI
+    if (newData.length === 0) {
+      this.exitManageMode();
+      document.getElementById('maintManageBtn').style.display = 'none';
+      document.getElementById('maintClearBtn').style.display = 'none';
+      document.getElementById('maintExportBtn').style.display = 'none';
+    } else {
+      this.renderManageBar();
+      this.renderAllData();
+    }
+
+    // Sync deletion to local database
+    await this._deleteFromDB(indices);
+  }
+
+  /* ========== Edit Functions ========== */
+  editSelected() {
+    var indices = Object.keys(this.state.selectedForDelete).map(Number);
+    if (!indices.length) {
+      this.toast('请先勾选要编辑的记录', 'info');
+      return;
+    }
+    if (indices.length > 1) {
+      this.toast('每次只能编辑一条记录', 'info');
+      return;
+    }
+    this.showEditModal(indices[0]);
+  }
+
+  showEditModal(index) {
+    var row = this.state.rawData[index];
+    var nameCol = this.state.columnMapping.name || this.state.headers[0];
+    var name = row[nameCol] || '未命名';
+
+    document.getElementById('editModalTitle').textContent = '编辑：' + name;
+
+    var html = '';
+    for (var i = 0; i < this.state.headers.length; i++) {
+      var key = this.state.headers[i];
+      var val = row[key] != null ? row[key] : '';
+      html += '<div class="edit-field-row">';
+      html += '<label>' + this.esc(key) + '</label>';
+      html += '<input type="text" id="editField_' + i + '" value="' + this.esc(val) + '" data-key="' + this.esc(key) + '">';
+      html += '</div>';
+    }
+    html += '<div class="edit-actions">';
+    html += '<button class="btn" onclick="app.closeEditModal()">取消</button>';
+    html += '<button class="btn btn-primary" onclick="app.saveEdit(' + index + ')">保存</button>';
+    html += '</div>';
+
+    document.getElementById('editModalBody').innerHTML = html;
+    document.getElementById('editModal').classList.add('active');
+  }
+
+  saveEdit(index) {
+    var row = this.state.rawData[index];
+    var changed = false;
+
+    for (var i = 0; i < this.state.headers.length; i++) {
+      var input = document.getElementById('editField_' + i);
+      if (input) {
+        var key = input.getAttribute('data-key');
+        var newVal = input.value.trim();
+        var oldVal = row[key] != null ? String(row[key]) : '';
+        if (newVal !== oldVal) {
+          row[key] = newVal;
+          changed = true;
+        }
+      }
+    }
+
+    if (!changed) {
+      this.toast('没有修改内容', 'info');
+      this.closeEditModal();
+      return;
+    }
+
+    // Update images display if name changed
+    this.closeEditModal();
+    this.toast('已保存修改', 'success');
+    this.renderAllData();
+
+    // Save to database
+    this._saveToDB('edit');
+  }
+
+  closeEditModal() {
+    document.getElementById('editModal').classList.remove('active');
+  }
+
+  async clearData() {
+    if (!confirm('确定要清除当前所有数据吗？')) return;
+    if (this.state.manageMode) this.exitManageMode();
+    this.state.rawData = [];
+    this.state.headers = [];
+    this.state.rowImages = {};
+    this.state.imageHashes = {};
+    this.state.columnMapping = {};
+    this.state.specialColumns = {};
+    this.state.searchConditions = [];
+    this.state.queryImageHashes = null;
+    this.state.queryImageUrl = null;
+    this.state._rawBuffer = null;
+    this.clearImageQuery();
+    this.addCondition();
+    this.renderAllData();
+    document.getElementById('maintManageBtn').style.display = 'none';
+    document.getElementById('maintClearBtn').style.display = 'none';
+    document.getElementById('maintExportBtn').style.display = 'none';
+    this.toast('数据已清除', 'info');
+
+    // Clear local database
+    await this._clearDB(true);
+  }
+
+  /* ========== Export to Excel ========== */
+  async exportToExcel() {
+    if (!this.state.rawData.length) {
+      this.toast('没有数据可导出', 'info');
+      return;
+    }
+
+    this.showLoading('正在准备导出...');
+    var self = this;
+
+    try {
+      var headers = this.state.headers;
+      if (!headers || headers.length === 0) {
+        this.hideLoading();
+        this.toast('无数据列可导出', 'error');
+        return;
+      }
+
+      // Build worksheet data as array of arrays
+      var aoa = [headers.slice()];
+      for (var i = 0; i < this.state.rawData.length; i++) {
+        var row = [];
+        for (var h = 0; h < headers.length; h++) {
+          var val = this.state.rawData[i][headers[h]];
+          row.push(val != null ? val : '');
+        }
+        aoa.push(row);
+      }
+
+      var ws = XLSX.utils.aoa_to_sheet(aoa);
+
+      // Set column widths
+      ws['!cols'] = headers.map(function(h, idx) {
+        return { wch: Math.max(h.length * 2, 12) };
+      });
+
+      var wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '数据');
+
+      // Generate base Excel buffer
+      var baseBuf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+
+      // Collect images
+      var imageEntries = []; // { dataUrl, row, ext }
+      for (var idx in self.state.rowImages) {
+        var rowIdx = parseInt(idx) + 1; // +1 because row 0 is header in Excel
+        var imgs = self.state.rowImages[idx];
+        for (var j = 0; j < imgs.length; j++) {
+          if (imgs[j] && imgs[j].startsWith('data:')) {
+            imageEntries.push({ dataUrl: imgs[j], row: rowIdx });
+          }
+        }
+      }
+
+      if (imageEntries.length === 0) {
+        // No images - just download the base Excel file
+        var blob = new Blob([baseBuf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = '公模册导出_' + new Date().toISOString().slice(0,10) + '.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        this.hideLoading();
+        this.toast('已导出 ' + this.state.rawData.length + ' 条记录', 'success');
+        return;
+      }
+
+      // Has images - need to modify the xlsx zip to include drawings
+      this.showLoading('正在嵌入图片 (' + imageEntries.length + '张)...');
+      var zip = await JSZip.loadAsync(baseBuf);
+
+      // Get image dimensions by loading each image
+      var imageDims = await Promise.all(imageEntries.map(function(entry) {
+        return new Promise(function(resolve) {
+          var img = new Image();
+          img.onload = function() {
+            // Scale to fit in cell (max 180px height)
+            var scale = Math.min(180 / img.height, 200 / img.width, 1);
+            resolve({ width: Math.round(img.width * scale), height: Math.round(img.height * scale) });
+          };
+          img.onerror = function() { resolve({ width: 150, height: 150 }); };
+          img.src = entry.dataUrl;
+        });
+      }));
+
+      // Check if template already has drawing support
+      var hasDrawingsDir = !!zip.folder('xl/drawings');
+
+      // Add images to zip
+      for (var i = 0; i < imageEntries.length; i++) {
+        var entry = imageEntries[i];
+        var dims = imageDims[i];
+        var dataUrl = entry.dataUrl;
+
+        // Determine format and extract base64
+        var match = dataUrl.match(/^data:([\w\/\+\.\-]+);base64,(.+)$/);
+        if (!match) continue;
+        var mime = match[1];
+        var base64Data = match[2];
+        var ext = 'png';
+        if (mime.indexOf('jpeg') >= 0 || mime.indexOf('jpg') >= 0) ext = 'jpeg';
+        else if (mime.indexOf('gif') >= 0) ext = 'gif';
+        else if (mime.indexOf('webp') >= 0) ext = 'webp';
+        else if (mime.indexOf('bmp') >= 0) ext = 'bmp';
+
+        zip.file('xl/media/image' + (i+1) + '.' + ext, base64Data, { base64: true });
+      }
+
+      // Build drawing.xml
+      var drawingXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+      drawingXml += '<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">';
+
+      for (var i = 0; i < imageEntries.length; i++) {
+        var entry = imageEntries[i];
+        var dims = imageDims[i];
+        var ext = 'png';
+        var match = entry.dataUrl.match(/^data:([\w\/\+\.\-]+);/);
+        if (match) {
+          var mime = match[1];
+          if (mime.indexOf('jpeg') >= 0 || mime.indexOf('jpg') >= 0) ext = 'jpeg';
+        }
+
+        // EMU conversion: 1 pixel ≈ 9525 EMU (at 96 DPI)
+        var cx = dims.width * 9525;
+        var cy = dims.height * 9525;
+
+        drawingXml += '<xdr:twoCellAnchor editAs="oneCell">';
+        drawingXml += '<xdr:from><xdr:col>0</xdr:col><xdr:colOff>0</xdr:colOff>';
+        drawingXml += '<xdr:row>' + (entry.row - 1) + '</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>';
+        drawingXml += '<xdr:to><xdr:col>3</xdr:col><xdr:colOff>0</xdr:colOff>';
+        drawingXml += '<xdr:row>' + entry.row + '</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to>';
+        drawingXml += '<xdr:pic>';
+        drawingXml += '<xdr:nvPicPr><xdr:cNvPr id="' + (i+2) + '" name="Image ' + (i+1) + '"/>';
+        drawingXml += '<xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr>';
+        drawingXml += '<xdr:blipFill><a:blip r:embed="rId' + (i+1) + '"/>';
+        drawingXml += '<a:stretch><a:fillRect/></a:stretch></xdr:blipFill>';
+        drawingXml += '<xdr:spPr><a:xfrm><a:off x="0" y="0"/>';
+        drawingXml += '<a:ext cx="' + cx + '" cy="' + cy + '"/>';
+        drawingXml += '</a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr>';
+        drawingXml += '</xdr:pic>';
+        drawingXml += '<xdr:clientData/>';
+        drawingXml += '</xdr:twoCellAnchor>';
+      }
+
+      drawingXml += '</xdr:wsDr>';
+      zip.file('xl/drawings/drawing1.xml', drawingXml);
+
+      // Build drawing rels
+      var drawingRelsXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+      drawingRelsXml += '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">';
+      for (var i = 0; i < imageEntries.length; i++) {
+        var ext = 'png';
+        var match = imageEntries[i].dataUrl.match(/^data:([\w\/\+\.\-]+);/);
+        if (match) {
+          var mime = match[1];
+          if (mime.indexOf('jpeg') >= 0 || mime.indexOf('jpg') >= 0) ext = 'jpeg';
+        }
+        drawingRelsXml += '<Relationship Id="rId' + (i+1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/image' + (i+1) + '.' + ext + '"/>';
+      }
+      drawingRelsXml += '</Relationships>';
+      zip.file('xl/drawings/_rels/drawing1.xml.rels', drawingRelsXml);
+
+      // Update sheet1.xml to add drawing reference
+      var sheet1Xml = await zip.file('xl/worksheets/sheet1.xml').async('text');
+      if (sheet1Xml.indexOf('<drawing') < 0) {
+        sheet1Xml = sheet1Xml.replace('</worksheet>', '<drawing r:id="rId1"/></worksheet>');
+        zip.file('xl/worksheets/sheet1.xml', sheet1Xml);
+      }
+
+      // Update sheet1 rels
+      var sheetRelsPath = 'xl/worksheets/_rels/sheet1.xml.rels';
+      var sheetRelsXml;
+      if (zip.file(sheetRelsPath)) {
+        sheetRelsXml = await zip.file(sheetRelsPath).async('text');
+        if (sheetRelsXml.indexOf('drawing') < 0) {
+          sheetRelsXml = sheetRelsXml.replace('</Relationships>',
+            '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing1.xml"/></Relationships>');
+          zip.file(sheetRelsPath, sheetRelsXml);
+        }
+      } else {
+        sheetRelsXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+        sheetRelsXml += '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">';
+        sheetRelsXml += '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing1.xml"/>';
+        sheetRelsXml += '</Relationships>';
+        zip.file(sheetRelsPath, sheetRelsXml);
+      }
+
+      // Update [Content_Types].xml
+      var contentTypesXml = await zip.file('[Content_Types].xml').async('text');
+      if (contentTypesXml.indexOf('drawing1.xml') < 0) {
+        contentTypesXml = contentTypesXml.replace('</Types>',
+          '<Override PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/></Types>');
+        zip.file('[Content_Types].xml', contentTypesXml);
+      }
+      // Add image content types
+      var imgTypes = { 'png': 'image/png', 'jpeg': 'image/jpeg', 'gif': 'image/gif', 'webp': 'image/webp', 'bmp': 'image/bmp' };
+      for (var ext in imgTypes) {
+        if (contentTypesXml.indexOf('Extension="' + ext + '"') < 0) {
+          contentTypesXml = zip.file('[Content_Types].xml') ? await zip.file('[Content_Types].xml').async('text') : contentTypesXml;
+          // Re-read in case it was updated
+          contentTypesXml = await zip.file('[Content_Types].xml').async('text');
+          contentTypesXml = contentTypesXml.replace('</Types>',
+            '<Default Extension="' + ext + '" ContentType="' + imgTypes[ext] + '"/></Types>');
+          zip.file('[Content_Types].xml', contentTypesXml);
+        }
+      }
+
+      // Update workbook.xml.rels
+      var wbRelsPath = 'xl/_rels/workbook.xml.rels';
+      if (zip.file(wbRelsPath)) {
+        var wbRelsXml = await zip.file(wbRelsPath).async('text');
+        // No changes needed to workbook rels for drawings
+      }
+
+      // Generate final file
+      var finalBuf = await zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      var url = URL.createObjectURL(finalBuf);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = '公模册导出_' + new Date().toISOString().slice(0,10) + '.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      this.hideLoading();
+      this.toast('已导出 ' + this.state.rawData.length + ' 条记录（含 ' + imageEntries.length + ' 张图片）', 'success');
+    } catch (e) {
+      this.hideLoading();
+      this.toast('导出失败: ' + (e.message || e), 'error');
+      console.error('Export error:', e);
+    }
+  }
+
+  /* ========== Event Binding ========== */
+  initEvents() {
+    var self = this;
+
+    // Excel upload
+    var uploadZone = document.getElementById('uploadZone');
+    var fileInput = document.getElementById('fileInput');
+
+    uploadZone.addEventListener('click', function() { fileInput.click(); });
+    fileInput.addEventListener('change', function(e) {
+      if (e.target.files[0]) {
+        self.closeUploadModal();
+        self.processFile(e.target.files[0]);
+      }
+    });
+
+    uploadZone.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      uploadZone.classList.add('drag-over');
+    });
+    uploadZone.addEventListener('dragleave', function() {
+      uploadZone.classList.remove('drag-over');
+    });
+    uploadZone.addEventListener('drop', function(e) {
+      e.preventDefault();
+      uploadZone.classList.remove('drag-over');
+      var file = e.dataTransfer.files[0];
+      if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.pdf') || file.type === 'application/pdf')) {
+        self.closeUploadModal();
+        self.processFile(file);
+      } else {
+        self.toast('请上传 .xlsx / .xls / .pdf 文件', 'error');
+      }
+    });
+
+    // Image search upload
+    var imgDropZone = document.getElementById('imageDropZone');
+    var imgInput = document.getElementById('imageInput');
+
+    imgDropZone.addEventListener('click', function() { imgInput.click(); });
+    imgInput.addEventListener('change', function(e) {
+      if (e.target.files[0]) self.handleImageUpload(e.target.files[0]);
+    });
+
+    imgDropZone.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      imgDropZone.style.borderColor = 'var(--primary)';
+      imgDropZone.style.background = 'var(--primary-light)';
+    });
+    imgDropZone.addEventListener('dragleave', function() {
+      imgDropZone.style.borderColor = '';
+      imgDropZone.style.background = '';
+    });
+    imgDropZone.addEventListener('drop', function(e) {
+      e.preventDefault();
+      imgDropZone.style.borderColor = '';
+      imgDropZone.style.background = '';
+      if (e.dataTransfer.files[0]) self.handleImageUpload(e.dataTransfer.files[0]);
+    });
+
+    // Modal close on overlay click
+    document.getElementById('detailModal').addEventListener('click', function(e) {
+      if (e.target === this) app.closeModal();
+    });
+    document.getElementById('passwordModal').addEventListener('click', function(e) {
+      if (e.target === this) app.closePasswordModal();
+    });
+    document.getElementById('maintenanceModal').addEventListener('click', function(e) {
+      if (e.target === this) app.closeMaintenanceModal();
+    });
+    document.getElementById('uploadModal').addEventListener('click', function(e) {
+      if (e.target === this) app.closeUploadModal();
+    });
+    document.getElementById('editModal').addEventListener('click', function(e) {
+      if (e.target === this) app.closeEditModal();
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        self.closeModal();
+        self.closeImageViewer();
+        self.closePasswordModal();
+        self.closeMaintenanceModal();
+        self.closeUploadModal();
+        self.closeEditModal();
+      }
+    });
+  }
+}
+
+/* ========== Initialize ========== */
+console.log("公模册系统独立版 - 正在初始化...");
+var app = new MoldCatalogApp();
+console.log('%c公模册系统(独立版)已就绪 - 数据存储在浏览器IndexedDB中', 'color:#2563eb;font-size:14px;font-weight:bold');
+
+/* ================================================================
+   GitHub 同步层 - 将数据同步到 GitHub 仓库
+   ================================================================ */
+
+// ==================== GitHub Config ====================
+var _githubConfig = {
+  repo: '',
+  token: '',
+  branch: 'main',
+  filePath: 'data.json',
+  lastSha: null,
+  syncInterval: null,
+  isSyncing: false,
+  _lastPushTime: 0,
+  _remoteChanged: false,
+  uploadedImages: {}
+};
+var _pushLock = false;
+
+// 预期仓库白名单：只有这个仓库才是公模册系统的正确数据源
+var _EXPECTED_REPO = 'DWR-CO/mold_catalog';
+var _EXPECTED_REPO_KEY = 'github_expected_repo_catalog';
+var _BACKUP_KEY = 'github_pull_backup_catalog';
+
+// 获取当前绑定的"标准数据仓库"（可在换绑后持久化到 localStorage）
+function getExpectedRepo() {
+  try {
+    return localStorage.getItem(_EXPECTED_REPO_KEY) || _EXPECTED_REPO;
+  } catch(e) { return _EXPECTED_REPO; }
+}
+
+// 判断当前配置的仓库是否为可信的标准仓库
+function isTrustedRepo() {
+  return !!_githubConfig.repo && _githubConfig.repo === getExpectedRepo();
+}
+
+// 保存本地数据快照（仅记录数据，不含图片，避免超出 localStorage 限制）
+function saveLocalBackup() {
+  try {
+    var snapshot = {
+      time: new Date().toISOString(),
+      repo: _githubConfig.repo,
+      count: app.state.rawData ? app.state.rawData.length : 0,
+      headers: app.state.headers ? app.state.headers.slice() : [],
+      records: app.state.rawData ? app.state.rawData.slice() : []
+    };
+    localStorage.setItem(_BACKUP_KEY, JSON.stringify(snapshot));
+    console.log('[Backup] 已备份本地数据快照：' + snapshot.count + ' 条（' + snapshot.time + '）');
+    return true;
+  } catch(e) {
+    console.warn('[Backup] 备份失败（可能数据过大）:', e);
+    return false;
+  }
+}
+
+function loadLocalBackup() {
+  try {
+    var s = localStorage.getItem(_BACKUP_KEY);
+    return s ? JSON.parse(s) : null;
+  } catch(e) { return null; }
+}
+
+// ==================== GitHub API Functions ====================
+
+// Sanitize filename for GitHub file path
+function sanitizeFilename(name) {
+  return name.replace(/[^a-zA-Z0-9\u4e00-\u9fff_\-.]/g, '_').substring(0, 200);
+}
+
+// Delay helper
+function ghDelay(ms) {
+  return new Promise(function(resolve) { setTimeout(resolve, ms); });
+}
+
+// GitHub API: Get file
+async function githubGetFile() {
+  if (!_githubConfig.repo || !_githubConfig.token) return null;
+  
+  var url = 'https://api.github.com/repos/' + _githubConfig.repo + '/contents/' + encodeURIComponent(_githubConfig.filePath) + '?ref=' + _githubConfig.branch + '&_=' + Date.now();
+  
+  try {
+    var response = await fetch(url, {
+      headers: {
+        'Authorization': 'token ' + _githubConfig.token,
+        'Accept': 'application/vnd.github.v3+json'
+      },
+      cache: 'no-store'
+    });
+    
+    if (response.status === 404 || response.status === 409) {
+      console.log('[GitHub] File not available (status ' + response.status + ')');
+      return null;
+    }
+    
+    if (!response.ok) {
+      throw new Error('GitHub API error: ' + response.status);
+    }
+    
+    return await response.json();
+  } catch(e) {
+    console.error('[GitHub] Failed to get file:', e);
+    throw e;
+  }
+}
+
+// GitHub API: Create or update file (with lock + retry)
+async function githubPutFile(content, message, sha) {
+  if (!_githubConfig.repo || !_githubConfig.token) return false;
+  
+  // Wait for any ongoing push
+  while (_pushLock) {
+    await ghDelay(500);
+  }
+  _pushLock = true;
+  
+  try {
+    var url = 'https://api.github.com/repos/' + _githubConfig.repo + '/contents/' + encodeURIComponent(_githubConfig.filePath);
+    
+    // Always fetch latest SHA before pushing
+    var currentSha = null;
+    try {
+      var currentFile = await githubGetFile();
+      if (currentFile && currentFile.sha) {
+        currentSha = currentFile.sha;
+      }
+    } catch(e) {
+      console.log('[GitHub Push] Could not fetch current file:', e.message);
+    }
+    
+    var body = {
+      message: message,
+      content: btoa(unescape(encodeURIComponent(content))),
+      branch: _githubConfig.branch
+    };
+    if (currentSha) body.sha = currentSha;
+    
+    // Try push, retry on conflict
+    for (var attempt = 0; attempt < 3; attempt++) {
+      var response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Authorization': 'token ' + _githubConfig.token,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+      
+      if (response.ok) {
+        var data = await response.json();
+        _githubConfig.lastSha = data.content.sha;
+        saveGitHubConfigToStorage();
+        console.log('[GitHub Push] Success (attempt ' + (attempt + 1) + ')');
+        return true;
+      }
+      
+      var errorText = await response.text();
+      
+      if ((response.status === 409 || response.status === 422) && attempt < 2) {
+        console.log('[GitHub Push] ' + response.status + ' error, retrying...');
+        try {
+          var freshFile = await githubGetFile();
+          if (freshFile && freshFile.sha) {
+            body.sha = freshFile.sha;
+            continue;
+          } else {
+            delete body.sha;
+            continue;
+          }
+        } catch(retryErr) {
+          throw new Error('GitHub API error: ' + response.status + ' - ' + errorText);
+        }
+      }
+      
+      throw new Error('GitHub API error: ' + response.status + ' - ' + errorText);
+    }
+  } finally {
+    _pushLock = false;
+  }
+}
+
+// ==================== Config Persistence ====================
+
+function loadGitHubConfig() {
+  try {
+    var saved = localStorage.getItem('github_sync_config_catalog');
+    if (saved) {
+      var config = JSON.parse(saved);
+      _githubConfig.repo = config.repo || '';
+      _githubConfig.token = config.token || '';
+      _githubConfig.branch = config.branch || 'main';
+      _githubConfig.lastSha = config.lastSha || null;
+      _githubConfig._lastPushTime = config.lastPushTime || 0;
+      _githubConfig.uploadedImages = config.uploadedImages || {};
+      updateSyncStatus();
+      
+      // Show disconnect button if configured
+      if (_githubConfig.repo && _githubConfig.token) {
+        document.getElementById('githubDisconnectBtn').style.display = '';
+      }
+      
+      if (_githubConfig.repo && _githubConfig.token) {
+        // 安全护栏：启动时若已保存的仓库不是标准仓库，禁止一切同步，避免覆盖数据
+        if (!isTrustedRepo()) {
+          console.warn('[GitHub] 启动检测：已保存仓库 ' + _githubConfig.repo + ' 非标准仓库，已禁用同步');
+          stopAutoSync();
+          app.toast('当前连接的仓库非标准数据仓库，已禁用同步以防覆盖数据', 'error');
+        } else {
+          startAutoSync();
+          // 安全护栏 4：启动时不再自动拉取覆盖本地。
+          // 若本地为空且已连接仓库，仅提示用户手动确认后再拉取。
+          if (!app.state.rawData || app.state.rawData.length === 0) {
+            console.log('[GitHub] 本地无数据，等待用户手动确认拉取（不自动拉取）');
+            app.toast('本地暂无数据，如需从 GitHub 拉取请点击"GitHub链接"→"拉取远程数据"', 'info');
+          } else {
+            console.log('[GitHub] Local data exists (' + app.state.rawData.length + ' records), skipping initial pull');
+          }
+        }
+      }
+    }
+  } catch(e) {
+    console.error('[GitHub] Failed to load config:', e);
+  }
+}
+
+function saveGitHubConfigToStorage() {
+  try {
+    localStorage.setItem('github_sync_config_catalog', JSON.stringify({
+      repo: _githubConfig.repo,
+      token: _githubConfig.token,
+      branch: _githubConfig.branch,
+      lastSha: _githubConfig.lastSha,
+      lastPushTime: _githubConfig._lastPushTime || 0,
+      uploadedImages: _githubConfig.uploadedImages || {}
+    }));
+  } catch(e) {
+    console.error('[GitHub] Failed to save config:', e);
+  }
+}
+
+// ==================== UI Functions ====================
+
+function showGitHubConfig() {
+  document.getElementById('githubRepo').value = _githubConfig.repo;
+  document.getElementById('githubToken').value = _githubConfig.token;
+  document.getElementById('githubBranch').value = _githubConfig.branch || 'main';
+  var connected = !!(_githubConfig.repo && _githubConfig.token);
+  document.getElementById('githubDisconnectBtn').style.display = connected ? '' : 'none';
+  var pullBtn = document.getElementById('githubPullBtn');
+  if (pullBtn) pullBtn.style.display = connected ? '' : 'none';
+  var restoreBtn = document.getElementById('githubRestoreBtn');
+  if (restoreBtn) restoreBtn.style.display = loadLocalBackup() ? '' : 'none';
+  var hint = document.getElementById('expectedRepoHint');
+  if (hint) hint.textContent = '当前标准数据仓库：' + getExpectedRepo() + '（仅与该仓库同步，其他仓库将被禁止连接以防覆盖数据）';
+  document.getElementById('githubConfigModal').classList.add('show');
+}
+
+// 换绑标准数据仓库（谨慎操作，用于合法迁移公模册数据源）
+function rebindExpectedRepo() {
+  var cur = getExpectedRepo();
+  var input = prompt('⚠️ 换绑标准数据仓库（高危操作）\n\n'
+    + '当前标准仓库：' + cur + '\n\n'
+    + '换绑后，系统将只与新仓库同步，并停止保护旧仓库。\n'
+    + '只有确认要把公模册数据源永久切换到另一个仓库时才操作。\n\n'
+    + '请输入新的标准仓库名（格式：用户名/仓库名）：', cur);
+  if (input === null) return;
+  var np = input.trim();
+  if (!/^[\w\-\.]+\/[\w\-\.]+$/.test(np)) {
+    alert('仓库格式不正确，应为：用户名/仓库名');
+    return;
+  }
+  if (np === cur) {
+    alert('新仓库与当前标准仓库相同，无需换绑。');
+    return;
+  }
+  var ok = confirm('确认将公模册标准数据仓库从\n\n  ' + cur + '\n\n改为\n\n  ' + np + '\n\n吗？\n\n'
+    + '换绑后系统将与新仓库同步。请确保 ' + np + ' 确实是公模册的正确数据仓库，'
+    + '否则连接后仍可能同步到错误数据。');
+  if (!ok) return;
+  try {
+    localStorage.setItem(_EXPECTED_REPO_KEY, np);
+  } catch(e) {
+    alert('换绑失败：无法写入配置');
+    return;
+  }
+  app.toast('已换绑标准仓库为 ' + np, 'success');
+  showGitHubConfig();
+}
+
+// 恢复上次拉取前的本地备份
+function restoreLocalBackup() {
+  var backup = loadLocalBackup();
+  if (!backup || !backup.records) {
+    app.toast('没有可用的本地备份', 'error');
+    return;
+  }
+  var msg = '将恢复备份数据：' + backup.count + ' 条\n'
+          + '备份时间：' + backup.time + '\n'
+          + '备份来源仓库：' + (backup.repo || '未知') + '\n\n'
+          + '恢复会用备份覆盖当前本地数据。恢复后如需同步回 GitHub，请点击"保存并同步"推送。\n\n确认恢复？';
+  if (!confirm(msg)) return;
+
+  // 停止自动同步，避免恢复过程中被远程覆盖
+  stopAutoSync();
+
+  app.state.rawData = backup.records.slice();
+  app.state.headers = backup.headers && backup.headers.length ? backup.headers.slice() : Object.keys(backup.records[0] || {});
+  app.state.rowImages = {};
+  app.state.imageHashes = {};
+
+  closeGitHubConfig();
+  app.renderConditions();
+  app.renderAllData();
+  app.enterMainApp();
+  // 用 'github_sync' 模式保存，避免恢复操作被自动推送到（可能错误的）仓库
+  app._saveToDB('github_sync');
+  app.toast('已恢复本地备份（' + app.state.rawData.length + ' 条）。如需写回正确仓库，请连接正确仓库后点"保存并同步"推送', 'success');
+}
+
+function closeGitHubConfig() {
+  document.getElementById('githubConfigModal').classList.remove('show');
+}
+
+function disconnectGitHub() {
+  if (!confirm('确定要断开 GitHub 同步吗？\n\n断开后本地数据不受影响，但不再自动同步到 GitHub。')) return;
+  
+  stopAutoSync();
+  localStorage.removeItem('github_sync_config_catalog');
+  _githubConfig.repo = '';
+  _githubConfig.token = '';
+  _githubConfig.branch = 'main';
+  _githubConfig.lastSha = null;
+  _githubConfig.isSyncing = false;
+  _githubConfig.uploadedImages = {};
+  updateSyncStatus();
+  closeGitHubConfig();
+  app.toast('已断开 GitHub 同步', 'success');
+}
+
+// 直接读取指定仓库的 data.json（不依赖当前 _githubConfig，用于连接前校验）
+async function fetchRemoteDataJson(repo, token, branch) {
+  // 清洗 Token：去除零宽字符/BOM/首尾空白，避免 fetch header 报 non ISO-8859-1 错误
+  var cleanToken = String(token || '').replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+  var url = 'https://api.github.com/repos/' + repo + '/contents/data.json?ref=' + branch + '&_=' + Date.now();
+  var res = await fetch(url, {
+    headers: { 'Authorization': 'token ' + cleanToken, 'Accept': 'application/vnd.github+json' }
+  });
+  if (res.status === 404) return { exists: false };
+  if (!res.ok) {
+    var t = ''; try { t = await res.text(); } catch(_){}
+    throw new Error('GitHub API ' + res.status + (t ? ' - ' + t.substring(0, 80) : ''));
+  }
+  var j = await res.json();
+  if (!j || !j.content) return { exists: false };
+  var content;
+  try {
+    content = decodeURIComponent(escape(atob(j.content)));
+  } catch (e) {
+    throw new Error('远程内容解码失败');
+  }
+  if (!content || !content.trim()) return { exists: false };
+  var parsed;
+  try {
+    parsed = JSON.parse(content);
+  } catch (e) {
+    throw new Error('远程 data.json 不是有效 JSON');
+  }
+  return { exists: true, data: parsed };
+}
+
+async function saveGitHubConfig() {
+  var repo = document.getElementById('githubRepo').value.trim();
+  var token = document.getElementById('githubToken').value.trim();
+  var branch = document.getElementById('githubBranch').value.trim() || 'main';
+  // 清洗 Token 中的零宽字符/BOM，防止 fetch header 报 non ISO-8859-1
+  token = String(token || '').replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+  
+  if (!repo || !token) {
+    alert('请填写仓库和Token');
+    return;
+  }
+  
+  if (!/^[\w\-\.]+\/[\w\-\.]+$/.test(repo)) {
+    alert('仓库格式不正确，应为：用户名/仓库名');
+    return;
+  }
+
+  // ===== 安全护栏 1：错仓库硬拦截 =====
+  // 只要输入的仓库不是当前绑定的"标准数据仓库"，一律禁止连接与同步，
+  // 既不拉取也不推送，本地/远程数据都不会被改动。
+  // 这样即使误填了别的系统仓库（如模具系统仓库），也绝不可能覆盖数据。
+  var expected = getExpectedRepo();
+  if (repo !== expected) {
+    alert('⛔ 已阻止连接：该仓库不是公模册系统的标准数据仓库。\n\n'
+        + '标准数据仓库：' + expected + '\n'
+        + '你输入的仓库：  ' + repo + '\n\n'
+        + '为防止下载错误数据并覆盖本地/远程资料，系统不会与该仓库进行任何同步（不拉取、不推送）。\n\n'
+        + '如果确实需要更换公模册的标准数据仓库，请在配置窗口点击"换绑标准仓库"，完成换绑后再连接。');
+    return;
+  }
+
+  // ===== 安全护栏 1b：数据匹配校验（仅在明确读到远程数据且不匹配时才拦截） =====
+  // 空仓库、读不到、网络异常、Token含非法字符等情况一律放行，
+  // 由"非标准仓库禁止同步""本地为空禁止推送"两道硬防护兜底，避免误伤正常连接。
+  try {
+    app.showLoading('正在校验仓库数据匹配...');
+    var remoteInfo = await fetchRemoteDataJson(repo, token, branch);
+    app.hideLoading();
+
+    if (remoteInfo.exists && remoteInfo.data && Array.isArray(remoteInfo.data.records) && remoteInfo.data.records.length > 0) {
+      // 收集远程字段
+      var remoteHeaderSet = {};
+      remoteInfo.data.records.slice(0, 80).forEach(function (rec) {
+        Object.keys(rec.data || {}).forEach(function (k) { remoteHeaderSet[k] = true; });
+      });
+      var remoteKeys = Object.keys(remoteHeaderSet);
+
+      // 本地有数据时，比对字段重合度
+      if (app.state.rawData && app.state.rawData.length > 0 && app.state.headers && app.state.headers.length > 0) {
+        var localKeys = app.state.headers;
+        var inter = localKeys.filter(function (k) { return remoteKeys.indexOf(k) >= 0; });
+        var ratio = inter.length / Math.max(1, localKeys.length);
+        if (ratio < 0.3) {
+          alert('⛔ 数据不匹配，已拒绝连接。\n\n'
+              + '该仓库 data.json 的字段结构与公模册本地数据差异过大（匹配度 ' + Math.round(ratio * 100) + '%）。\n'
+              + '这通常意味着连到了其它系统的仓库（例如模具/呆滞模具系统）。\n\n'
+              + '标准仓库：' + expected + '\n'
+              + '已取消连接，未做任何同步，本地与远程数据均保持不变。');
+          return;
+        }
+      }
+    } else {
+      console.log('[GitHub] 远程无有效数据（空仓库/新仓库），跳过匹配校验，允许连接');
+    }
+  } catch (e) {
+    app.hideLoading();
+    console.warn('[GitHub] 远程数据校验跳过（不阻断连接）：', e && e.message);
+    app.toast('未能完成远程数据校验，将直接连接（已启用防覆盖保护）', 'info');
+  }
+
+  // ===== 安全护栏 2：连接前确认同步方向 =====
+  var localCount = app.state.rawData ? app.state.rawData.length : 0;
+  var dirTip;
+  if (localCount > 0) {
+    dirTip = '即将连接标准仓库：' + repo + '\n\n'
+           + '检测到本地有 ' + localCount + ' 条数据。\n'
+           + '连接后会把【本地数据推送到 GitHub】，并覆盖该仓库 data.json 中的远程数据。\n\n'
+           + '确认继续？（取消则不连接、不同步）';
+  } else {
+    dirTip = '即将连接标准仓库：' + repo + '\n\n'
+           + '本地暂无数据。\n'
+           + '连接后会从 GitHub【拉取远程数据】并填充到本地。\n\n'
+           + '确认继续？（取消则不连接、不同步）';
+  }
+  if (!confirm(dirTip)) return;
+
+  _githubConfig.repo = repo;
+  _githubConfig.token = token;
+  _githubConfig.branch = branch;
+  
+  saveGitHubConfigToStorage();
+  closeGitHubConfig();
+  updateSyncStatus();
+  document.getElementById('githubDisconnectBtn').style.display = '';
+  
+  // If local data exists, push it first
+  if (app.state.rawData && app.state.rawData.length > 0) {
+    console.log('[GitHub] Local data exists (' + app.state.rawData.length + ' records), pushing...');
+    app.showLoading('正在推送数据到GitHub...');
+    pushToGitHub().then(function() {
+      app.hideLoading();
+      app.toast('数据已推送到GitHub', 'success');
+      startAutoSync();
+    }).catch(function(e) {
+      app.hideLoading();
+      app.toast('推送失败: ' + e.message, 'error');
+      startAutoSync();
+    });
+  } else {
+    // Pull from GitHub（拉取前先备份本地，虽然此时本地为空）
+    saveLocalBackup();
+    app.showLoading('正在从GitHub拉取数据...');
+    syncFromGitHub().then(function() {
+      app.hideLoading();
+      app.toast('已从GitHub同步数据', 'success');
+      startAutoSync();
+    }).catch(function(e) {
+      app.hideLoading();
+      app.toast('同步失败: ' + e.message, 'error');
+      startAutoSync();
+    });
+  }
+}
+
+function updateSyncStatus() {
+  var badge = document.getElementById('syncBadge');
+  var icon = document.getElementById('syncIcon');
+  var status = document.getElementById('syncStatus');
+  
+  if (!badge || !icon || !status) return;
+  
+  if (!_githubConfig.repo || !_githubConfig.token) {
+    status.textContent = '未配置';
+    badge.classList.remove('syncing', 'error');
+    icon.classList.remove('rotating');
+  } else if (_githubConfig.isSyncing) {
+    status.textContent = '同步中...';
+    badge.classList.add('syncing');
+    icon.classList.add('rotating');
+  } else {
+    status.textContent = '已连接';
+    badge.classList.remove('syncing', 'error');
+    icon.classList.remove('rotating');
+  }
+}
+
+function showSyncError(message) {
+  var badge = document.getElementById('syncBadge');
+  var status = document.getElementById('syncStatus');
+  badge.classList.add('error');
+  status.textContent = '错误';
+  console.error('[GitHub Sync Error]:', message);
+  
+  setTimeout(function() {
+    badge.classList.remove('error');
+    updateSyncStatus();
+  }, 5000);
+}
+
+// ==================== Data Sync Functions ====================
+
+// ===== 图片独立文件同步辅助 =====
+
+// 简单字符串哈希（FNV-1a 变体），用于给图片生成稳定文件名
+function _simpleHash(str) {
+  var h1 = 0x811c9dc5, h2 = 0x1000193;
+  for (var i = 0; i < str.length; i++) {
+    var c = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 0x01000193) >>> 0;
+    h2 = (Math.imul(h2 ^ c, 0x85ebca6b) + i) >>> 0;
+  }
+  return ('00000000' + h1.toString(16)).slice(-8) + ('00000000' + h2.toString(16)).slice(-8);
+}
+
+function _imgExt(dataUrl) {
+  if (/^data:image\/jpe?g/i.test(dataUrl)) return 'jpg';
+  if (/^data:image\/gif/i.test(dataUrl)) return 'gif';
+  if (/^data:image\/webp/i.test(dataUrl)) return 'webp';
+  return 'png';
+}
+
+function _dataUrlBase64(dataUrl) {
+  var idx = String(dataUrl).indexOf(',');
+  return idx >= 0 ? String(dataUrl).substring(idx + 1) : '';
+}
+
+// 检查仓库中某路径文件是否存在（返回 sha）
+async function ghFileExists(path) {
+  var url = 'https://api.github.com/repos/' + _githubConfig.repo + '/contents/' + encodeURI(path) + '?ref=' + _githubConfig.branch + '&_=' + Date.now();
+  var res = await fetch(url, { headers: { 'Authorization': 'token ' + _githubConfig.token, 'Accept': 'application/vnd.github+json' } });
+  if (res.status === 404) return { exists: false };
+  if (res.ok) { var j = await res.json(); return { exists: true, sha: j.sha }; }
+  var t = ''; try { t = await res.text(); } catch(_){}
+  throw new Error('检查文件失败 ' + path + ' (' + res.status + ')' + (t ? ' ' + t.substring(0, 60) : ''));
+}
+
+// 上传单张图片为独立文件（内容寻址命名，已存在则跳过）
+async function ghUploadImageFile(path, base64Data, message) {
+  // 本会话/持久缓存已知上传过，直接跳过，省 API 调用
+  if (_githubConfig.uploadedImages && _githubConfig.uploadedImages[path]) {
+    return 'cached';
+  }
+  var ex = await ghFileExists(path);
+  if (ex.exists) {
+    _githubConfig.uploadedImages[path] = true;
+    return 'skip';
+  }
+  var url = 'https://api.github.com/repos/' + _githubConfig.repo + '/contents/' + encodeURI(path);
+  var res = await fetch(url, {
+    method: 'PUT',
+    headers: { 'Authorization': 'token ' + _githubConfig.token, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: message, content: base64Data, branch: _githubConfig.branch })
+  });
+  if (res.status === 409) {
+    // 并发下文件已存在，取 sha 再更新
+    var ex2 = await ghFileExists(path);
+    if (ex2.exists) {
+      var res2 = await fetch(url, {
+        method: 'PUT',
+        headers: { 'Authorization': 'token ' + _githubConfig.token, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: message, content: base64Data, branch: _githubConfig.branch, sha: ex2.sha })
+      });
+      if (!res2.ok) { var t2 = await res2.text(); throw new Error('更新图片失败 ' + path + ' ' + res2.status + ' ' + t2.substring(0, 80)); }
+      _githubConfig.uploadedImages[path] = true;
+      return 'uploaded';
+    }
+  }
+  if (!res.ok) { var t = await res.text(); throw new Error('上传图片失败 ' + path + ' ' + res.status + ' ' + t.substring(0, 80)); }
+  _githubConfig.uploadedImages[path] = true;
+  return 'uploaded';
+}
+
+// 从仓库 raw 地址把图片文件取回为 dataURL
+async function rawUrlToDataUrl(path) {
+  var url = 'https://raw.githubusercontent.com/' + _githubConfig.repo + '/' + _githubConfig.branch + '/' + encodeURI(path) + '?_=' + Date.now();
+  try {
+    var res = await fetch(url);
+    if (!res.ok) { console.warn('[GitHub] 图片取回失败', path, res.status); return null; }
+    var blob = await res.blob();
+    return await new Promise(function(resolve) {
+      var fr = new FileReader();
+      fr.onload = function() { resolve(fr.result); };
+      fr.onerror = function() { resolve(null); };
+      fr.readAsDataURL(blob);
+    });
+  } catch(e) { console.warn('[GitHub] 图片取回异常', path, e); return null; }
+}
+
+// 构建 data.json：图片逐张上传为独立文件，data.json 内只存路径
+async function buildDataWithImageFiles(onProgress) {
+  var records = [];
+  var total = 0, done = 0;
+  for (var i = 0; i < app.state.rawData.length; i++) {
+    total += (app.state.rowImages[String(i)] || []).length;
+  }
+  for (var i = 0; i < app.state.rawData.length; i++) {
+    var imgs = app.state.rowImages[String(i)] || [];
+    var paths = [];
+    for (var k = 0; k < imgs.length; k++) {
+      var du = imgs[k];
+      if (du && String(du).indexOf('data:') === 0) {
+        var h = _simpleHash(du);
+        var ext = _imgExt(du);
+        var path = 'images/' + h + '.' + ext;
+        var b64 = _dataUrlBase64(du);
+        try {
+          await ghUploadImageFile(path, b64, 'Add image ' + path);
+        } catch(e) {
+          console.warn('[GitHub Push] 图片上传失败，跳过该图：', path, e.message);
+        }
+        paths.push(path);
+      } else if (du) {
+        paths.push(du); // 已是路径/URL
+      }
+      done++;
+      if (onProgress) onProgress(done, total);
+    }
+    records.push({
+      id: i + 1,
+      data: app.state.rawData[i],
+      images: paths,
+      imageKind: 'path',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    });
+  }
+  return {
+    records: records,
+    config: { columnMapping: app.state.columnMapping, specialColumns: app.state.specialColumns },
+    lastUpdated: new Date().toISOString(),
+    version: 3,
+    imageMode: 'files'
+  };
+}
+
+// Push local data to GitHub
+async function pushToGitHub() {
+  if (!_githubConfig.repo || !_githubConfig.token) {
+    console.error('[GitHub Push] Not configured!');
+    return;
+  }
+
+  // 安全护栏（硬拦截）：非标准仓库禁止推送，绝不覆盖远程数据
+  if (!isTrustedRepo()) {
+    console.warn('[GitHub Push] 已阻止：当前仓库 ' + _githubConfig.repo + ' 不是标准数据仓库 ' + getExpectedRepo());
+    showSyncError('已阻止推送：非标准仓库');
+    return;
+  }
+
+  // 安全护栏：本地数据为空时禁止推送，绝不把空的 data.json 覆盖到远程
+  if (!app.state.rawData || app.state.rawData.length === 0) {
+    console.warn('[GitHub Push] 已阻止：本地数据为空，不覆盖远程 data.json');
+    showSyncError('本地数据为空，已阻止推送');
+    return;
+  }
+
+  // Debounce
+  var now = Date.now();
+  if (now - _githubConfig._lastPushTime < 5000) {
+    console.log('[GitHub Push] Skipped (debounce)');
+    return;
+  }
+  _githubConfig._lastPushTime = now;
+
+  _githubConfig.isSyncing = true;
+  updateSyncStatus();
+
+  try {
+    // 1) 图片逐张上传为独立文件，得到只含路径的 data.json
+    app.showLoading && app.showLoading('正在逐张上传图片到GitHub...');
+    var data = await buildDataWithImageFiles(function(done, total) {
+      if (app.showLoading) app.showLoading('正在上传图片 ' + done + '/' + total + ' ...');
+    });
+    var content = JSON.stringify(data, null, 2);
+    var sizeKB = (new Blob([content]).size / 1024).toFixed(1);
+    console.log('[GitHub Push] data.json size: ' + sizeKB + ' KB, Records: ' + data.records.length + '（图片以独立文件存储）');
+
+    if (new Blob([content]).size > 950 * 1024) {
+      console.warn('[GitHub Push] data.json 仍过大(' + sizeKB + 'KB)');
+      showSyncError('data.json 过大(' + sizeKB + 'KB)');
+      return;
+    }
+
+    // 2) 上传 data.json
+    if (app.showLoading) app.showLoading('正在上传 data.json...');
+    var message = 'Update data - ' + new Date().toLocaleString('zh-CN');
+    await githubPutFile(content, message, _githubConfig.lastSha);
+    console.log('[GitHub Push] Complete');
+    saveGitHubConfigToStorage();
+    if (app.hideLoading) app.hideLoading();
+  } catch(e) {
+    console.error('[GitHub Push] Failed:', e);
+    if (app.hideLoading) app.hideLoading();
+    showSyncError('推送失败: ' + e.message);
+    throw e;
+  } finally {
+    _githubConfig.isSyncing = false;
+    updateSyncStatus();
+  }
+}
+
+// Sync data from GitHub
+async function syncFromGitHub() {
+  if (!_githubConfig.repo || !_githubConfig.token) return;
+  if (_githubConfig.isSyncing) return;
+  if (_pushLock) return;
+
+  // 安全护栏（硬拦截）：非标准仓库禁止拉取，绝不覆盖本地数据
+  if (!isTrustedRepo()) {
+    console.warn('[GitHub Pull] 已阻止：当前仓库 ' + _githubConfig.repo + ' 不是标准数据仓库 ' + getExpectedRepo());
+    showSyncError('已阻止拉取：非标准仓库');
+    return;
+  }
+  
+  // Don't pull within 10 seconds of push
+  var now = Date.now();
+  if (_githubConfig._lastPushTime && (now - _githubConfig._lastPushTime < 10000)) {
+    console.log('[GitHub Pull] Skipped (recent push)');
+    return;
+  }
+  
+  _githubConfig.isSyncing = true;
+  updateSyncStatus();
+  
+  try {
+    var fileData = await githubGetFile();
+    
+    if (!fileData) {
+      console.log('[GitHub] No remote file, pushing local data');
+      await pushToGitHub();
+    } else {
+      var remoteSha = fileData.sha;
+      var remoteContent = decodeURIComponent(escape(atob(fileData.content)));
+      var remoteData = JSON.parse(remoteContent);
+      
+      console.log('[GitHub Pull] Received ' + (remoteData.records ? remoteData.records.length : 0) + ' records');
+      
+      // Update local data from remote
+      await updateLocalFromGitHub(remoteData);
+      
+      _githubConfig.lastSha = remoteSha;
+      saveGitHubConfigToStorage();
+    }
+  } catch(e) {
+    console.error('[GitHub] Sync failed:', e);
+    showSyncError('同步失败: ' + e.message);
+  } finally {
+    _githubConfig.isSyncing = false;
+    updateSyncStatus();
+  }
+}
+
+// Update local data from GitHub remote data
+async function updateLocalFromGitHub(remoteData) {
+  if (!remoteData.records || remoteData.records.length === 0) {
+    console.log('[GitHub] Remote data is empty, keeping local data');
+    return;
+  }
+  
+  // Validate remote data
+  var firstRecord = remoteData.records[0];
+  if (!firstRecord.data) {
+    console.log('[GitHub] Remote data schema invalid');
+    return;
+  }
+
+  // 安全护栏 5：覆盖本地前先备份
+  saveLocalBackup();
+
+  // 安全护栏 5b：若远程记录数远少于本地（骤降），要求二次确认，防止误拉空/错数据覆盖
+  var localCount = app.state.rawData ? app.state.rawData.length : 0;
+  if (localCount > 0 && remoteData.records.length < localCount * 0.5) {
+    var warn = '⚠️ 远程数据（' + remoteData.records.length + ' 条）远少于本地数据（' + localCount + ' 条）。\n\n'
+             + '这可能意味着连错仓库或远程数据被清空。继续将覆盖本地数据（已自动备份，可恢复）。\n\n是否仍要继续？';
+    if (!confirm(warn)) {
+      console.log('[GitHub] 用户取消：远程数据骤降，疑似误同步');
+      return;
+    }
+  }
+
+  // 是否为"图片独立文件"格式（version>=3 或 imageMode==='files' 或记录带 imageKind==='path'）
+  var fileMode = (remoteData.version >= 3) || (remoteData.imageMode === 'files') ||
+                 (firstRecord.imageKind === 'path');
+  
+  // Clear local state and rebuild from remote
+  app.state.rawData = [];
+  app.state.rowImages = {};
+  app.state.imageHashes = {};
+  app.state.headers = [];
+  
+  var headersSet = {};
+  
+  for (var i = 0; i < remoteData.records.length; i++) {
+    var record = remoteData.records[i];
+    var data = record.data || {};
+    
+    app.state.rawData.push(data);
+    
+    for (var key in data) {
+      headersSet[key] = true;
+    }
+
+    var refs = record.images || [];
+    if (refs.length > 0) {
+      var resolved = [];
+      for (var k = 0; k < refs.length; k++) {
+        var ref = refs[k];
+        if (!ref) continue;
+        if (String(ref).indexOf('data:') === 0) {
+          resolved.push(ref); // 内嵌 dataURL（旧格式）
+        } else if (String(ref).indexOf('http') === 0) {
+          resolved.push(ref); // 已是完整 URL
+        } else {
+          // 仓库内相对路径 images/xxx.png → 取回为 dataURL
+          var du = await rawUrlToDataUrl(ref);
+          if (du) resolved.push(du);
+        }
+      }
+      if (resolved.length) app.state.rowImages[String(i)] = resolved;
+    }
+  }
+  
+  app.state.headers = Object.keys(headersSet);
+  
+  // Restore config if present
+  if (remoteData.config) {
+    if (remoteData.config.columnMapping) app.state.columnMapping = remoteData.config.columnMapping;
+    if (remoteData.config.specialColumns) app.state.specialColumns = remoteData.config.specialColumns;
+  }
+  
+  // Save to database
+  app._saveToDB('github_sync');
+  
+  // Recompute hashes for image search
+  if (Object.keys(app.state.rowImages).length > 0) {
+    await app.computeAllHashes();
+  }
+  
+  // Refresh UI
+  app.renderConditions();
+  app.enterMainApp();
+  
+  console.log('[GitHub] Updated local data: ' + app.state.rawData.length + ' records, 图片模式: ' + (fileMode ? '独立文件' : '内嵌'));
+}
+
+// ==================== Auto Sync ====================
+
+function startAutoSync() {
+  if (_githubConfig.syncInterval) {
+    clearInterval(_githubConfig.syncInterval);
+  }
+
+  // 安全护栏 3：自动同步只做"远程变更检测"，绝不静默覆盖本地。
+  // 本地数据变化仍会自动推送到 GitHub（见 _saveToDB 拦截），
+  // 但远程若有更新，只提示用户，由用户确认后才拉取，避免连错仓库/误操作把本地清空。
+  _githubConfig.syncInterval = setInterval(function() {
+    if (!_githubConfig.isSyncing && _githubConfig.repo && _githubConfig.token) {
+      pollRemoteChanges();
+    }
+  }, 30000);
+
+  console.log('[GitHub] Auto sync started (30s 远程变更检测，不自动覆盖本地)');
+}
+
+// 检测远程是否有新变更；若有，提示用户手动确认拉取
+async function pollRemoteChanges() {
+  if (_githubConfig.isSyncing || _pushLock) return;
+  // 安全护栏：非标准仓库不做任何远程检测/同步
+  if (!isTrustedRepo()) return;
+  // 刚推送过，跳过
+  if (_githubConfig._lastPushTime && (Date.now() - _githubConfig._lastPushTime < 10000)) return;
+
+  _githubConfig.isSyncing = true;
+  try {
+    var fileData = await githubGetFile();
+    if (!fileData) return;
+    if (_githubConfig.lastSha && fileData.sha !== _githubConfig.lastSha) {
+      // 远程 SHA 变化，说明别处有更新
+      console.log('[GitHub] 检测到远程数据有更新，等待用户确认');
+      app.toast('检测到远程数据有更新，点击"GitHub链接"→"拉取远程数据"以查看', 'info');
+      _githubConfig._remoteChanged = true;
+      updateSyncStatus();
+    }
+  } catch(e) {
+    console.warn('[GitHub] 远程变更检测失败:', e);
+  } finally {
+    _githubConfig.isSyncing = false;
+  }
+}
+
+// 用户手动触发的拉取（带确认 + 备份）
+async function manualPullFromGitHub() {
+  if (!_githubConfig.repo || !_githubConfig.token) {
+    app.toast('尚未连接 GitHub 仓库', 'error');
+    return;
+  }
+  var localCount = app.state.rawData ? app.state.rawData.length : 0;
+  var msg = '将从仓库【' + _githubConfig.repo + '】拉取远程数据。\n\n'
+          + '⚠️ 拉取会用远程数据【覆盖当前本地数据】（本地现有 ' + localCount + ' 条）。\n'
+          + '拉取前会自动备份本地数据，如需回退可恢复。\n\n确认拉取？';
+  if (!confirm(msg)) return;
+
+  saveLocalBackup();
+  app.showLoading('正在从GitHub拉取数据...');
+  try {
+    await syncFromGitHub();
+    app.hideLoading();
+    app.toast('已从GitHub拉取数据（本地已备份）', 'success');
+    _githubConfig._remoteChanged = false;
+    updateSyncStatus();
+  } catch(e) {
+    app.hideLoading();
+    app.toast('拉取失败: ' + e.message, 'error');
+  }
+}
+
+function stopAutoSync() {
+  if (_githubConfig.syncInterval) {
+    clearInterval(_githubConfig.syncInterval);
+    _githubConfig.syncInterval = null;
+  }
+  console.log('[GitHub] Auto sync stopped');
+}
+
+// ==================== Intercept Data Changes ====================
+
+// Wrap _saveToDB to trigger GitHub push
+var _originalSaveToDB = app._saveToDB.bind(app);
+app._saveToDB = async function(mode) {
+  await _originalSaveToDB(mode);
+  if (_githubConfig.repo && _githubConfig.token && mode !== 'github_sync') {
+    setTimeout(function() { pushToGitHub(); }, 500);
+  }
+};
+
+// Wrap _clearDB to trigger GitHub push
+var _originalClearDB = app._clearDB.bind(app);
+app._clearDB = async function(clearConfig) {
+  await _originalClearDB(clearConfig);
+  if (_githubConfig.repo && _githubConfig.token) {
+    setTimeout(function() { pushToGitHub(); }, 500);
+  }
+};
+
+// ==================== Initialize GitHub Sync ====================
+loadGitHubConfig();
+
+// Close modal on overlay click
+document.getElementById('githubConfigModal').addEventListener('click', function(e) {
+  if (e.target === this) closeGitHubConfig();
+});
+
+</script>
+</body>
+</html>
