@@ -14,11 +14,11 @@
         "产品图": ""
       },
       "images": [
-        "images/f178ab7d74105093.png"
+        "images/069a1aaf38e7a48e.png"
       ],
       "imageKind": "path",
-      "created_at": "2026-11-11T06:44:03.955Z",
-      "updated_at": "2026-11-11T06:44:03.955Z"
+      "created_at": "2026-11-12T05:25:55.506Z",
+      "updated_at": "2026-11-12T05:25:55.506Z"
     },
     {
       "id": 2,
@@ -34,11 +34,11 @@
         "产品图": ""
       },
       "images": [
-        "images/b61741eb977f2d01.png"
+        "images/16685ead4a671796.png"
       ],
       "imageKind": "path",
-      "created_at": "2026-11-11T06:44:10.222Z",
-      "updated_at": "2026-11-11T06:44:10.222Z"
+      "created_at": "2026-11-12T05:25:57.863Z",
+      "updated_at": "2026-11-12T05:25:57.863Z"
     },
     {
       "id": 3,
@@ -54,11 +54,11 @@
         "产品图": ""
       },
       "images": [
-        "images/b8856ba74718d145.png"
+        "images/7d79a0f14a75bac2.png"
       ],
       "imageKind": "path",
-      "created_at": "2026-11-11T06:44:14.829Z",
-      "updated_at": "2026-11-11T06:44:14.829Z"
+      "created_at": "2026-11-12T05:26:00.147Z",
+      "updated_at": "2026-11-12T05:26:00.147Z"
     },
     {
       "id": 4,
@@ -74,11 +74,11 @@
         "产品图": ""
       },
       "images": [
-        "images/df191c3b3e2721a1.png"
+        "images/5a7d7f25c2f68bde.png"
       ],
       "imageKind": "path",
-      "created_at": "2026-11-11T06:44:17.673Z",
-      "updated_at": "2026-11-11T06:44:17.673Z"
+      "created_at": "2026-11-12T05:26:02.369Z",
+      "updated_at": "2026-11-12T05:26:02.369Z"
     },
     {
       "id": 5,
@@ -94,11 +94,11 @@
         "产品图": ""
       },
       "images": [
-        "images/b80a675350340095.png"
+        "images/80275221ac08a5cc.png"
       ],
       "imageKind": "path",
-      "created_at": "2026-11-11T06:44:19.950Z",
-      "updated_at": "2026-11-11T06:44:19.950Z"
+      "created_at": "2026-11-12T05:26:04.343Z",
+      "updated_at": "2026-11-12T05:26:04.343Z"
     },
     {
       "id": 6,
@@ -114,11 +114,11 @@
         "产品图": ""
       },
       "images": [
-        "images/441c910a31b2fa8c.png"
+        "images/d884476c6655ecab.png"
       ],
       "imageKind": "path",
-      "created_at": "2026-11-11T06:44:22.913Z",
-      "updated_at": "2026-11-11T06:44:22.913Z"
+      "created_at": "2026-11-12T05:26:06.203Z",
+      "updated_at": "2026-11-12T05:26:06.203Z"
     },
     {
       "id": 7,
@@ -134,11 +134,11 @@
         "产品图": ""
       },
       "images": [
-        "images/d7781271f14a91a1.png"
+        "images/c9340d4fd39663be.png"
       ],
       "imageKind": "path",
-      "created_at": "2026-11-11T06:44:25.742Z",
-      "updated_at": "2026-11-11T06:44:25.742Z"
+      "created_at": "2026-11-12T05:26:08.168Z",
+      "updated_at": "2026-11-12T05:26:08.168Z"
     },
     {
       "id": 8,
@@ -154,11 +154,11 @@
         "产品图": ""
       },
       "images": [
-        "images/8b93a114fe176e68.png"
+        "images/e0396bfea99d7159.png"
       ],
       "imageKind": "path",
-      "created_at": "2026-11-11T06:44:28.364Z",
-      "updated_at": "2026-11-11T06:44:28.364Z"
+      "created_at": "2026-11-12T05:26:10.085Z",
+      "updated_at": "2026-11-12T05:26:10.085Z"
     },
     {
       "id": 9,
@@ -174,11 +174,11 @@
         "产品图": ""
       },
       "images": [
-        "images/ddb4e4905d1c67fa.png"
+        "images/cd943fc61c11c7e9.png"
       ],
       "imageKind": "path",
-      "created_at": "2026-11-11T06:44:30.972Z",
-      "updated_at": "2026-11-11T06:44:30.972Z"
+      "created_at": "2026-11-12T05:26:12.029Z",
+      "updated_at": "2026-11-12T05:26:12.029Z"
     },
     {
       "id": 10,
@@ -194,11 +194,11 @@
         "产品图": ""
       },
       "images": [
-        "images/ce6f8870e55b0150.png"
+        "images/aa00a8ee126e8b5b.png"
       ],
       "imageKind": "path",
-      "created_at": "2026-11-11T06:44:36.562Z",
-      "updated_at": "2026-11-11T06:44:36.562Z"
+      "created_at": "2026-11-12T05:26:14.357Z",
+      "updated_at": "2026-11-12T05:26:14.357Z"
     },
     {
       "id": 11,
@@ -211,14 +211,16 @@
         "模穴数": "1*4",
         "产能": 10001,
         "供应商": "正庄",
-        "产品图": ""
+        "产品图": "",
+        "材质信息": "瓶身：PETG\n盖子：PETG+PP",
+        "尺寸（mm）": "总高:109 瓶高:79 直径:29"
       },
       "images": [
-        "images/ce6f8870e55b0150.png"
+        "images/aa00a8ee126e8b5b.png"
       ],
       "imageKind": "path",
-      "created_at": "2026-11-11T06:44:36.565Z",
-      "updated_at": "2026-11-11T06:44:36.565Z"
+      "created_at": "2026-11-12T05:26:14.357Z",
+      "updated_at": "2026-11-12T05:26:14.357Z"
     },
     {
       "id": 12,
@@ -234,11 +236,11 @@
         "产品图": ""
       },
       "images": [
-        "images/ce6f8870e55b0150.png"
+        "images/aa00a8ee126e8b5b.png"
       ],
       "imageKind": "path",
-      "created_at": "2026-11-11T06:44:36.568Z",
-      "updated_at": "2026-11-11T06:44:36.568Z"
+      "created_at": "2026-11-12T05:26:14.358Z",
+      "updated_at": "2026-11-12T05:26:14.358Z"
     },
     {
       "id": 13,
@@ -254,11 +256,11 @@
         "产品图": ""
       },
       "images": [
-        "images/7581f63356c24cd7.png"
+        "images/22e0533523e7c220.png"
       ],
       "imageKind": "path",
-      "created_at": "2026-11-11T06:44:39.791Z",
-      "updated_at": "2026-11-11T06:44:39.791Z"
+      "created_at": "2026-11-12T05:26:16.613Z",
+      "updated_at": "2026-11-12T05:26:16.613Z"
     },
     {
       "id": 14,
@@ -274,11 +276,11 @@
         "产品图": ""
       },
       "images": [
-        "images/9d806b406ba2b45e.png"
+        "images/abf62dce1c890a99.png"
       ],
       "imageKind": "path",
-      "created_at": "2026-11-11T06:44:43.553Z",
-      "updated_at": "2026-11-11T06:44:43.553Z"
+      "created_at": "2026-11-12T05:26:18.739Z",
+      "updated_at": "2026-11-12T05:26:18.739Z"
     },
     {
       "id": 15,
@@ -294,11 +296,11 @@
         "产品图": ""
       },
       "images": [
-        "images/9d806b406ba2b45e.png"
+        "images/abf62dce1c890a99.png"
       ],
       "imageKind": "path",
-      "created_at": "2026-11-11T06:44:43.554Z",
-      "updated_at": "2026-11-11T06:44:43.554Z"
+      "created_at": "2026-11-12T05:26:18.739Z",
+      "updated_at": "2026-11-12T05:26:18.739Z"
     },
     {
       "id": 16,
@@ -314,18 +316,59 @@
         "产品图": ""
       },
       "images": [
-        "images/9d806b406ba2b45e.png"
+        "images/abf62dce1c890a99.png"
       ],
       "imageKind": "path",
-      "created_at": "2026-11-11T06:44:43.556Z",
-      "updated_at": "2026-11-11T06:44:43.556Z"
+      "created_at": "2026-11-12T05:26:18.740Z",
+      "updated_at": "2026-11-12T05:26:18.740Z"
+    },
+    {
+      "id": 17,
+      "data": {
+        "品类": "防晒瓶",
+        "容量": "30ML",
+        "材质类型": "塑料",
+        "材质信息": "瓶身：PE    \n内塞：LDPE\n盖子：PP",
+        "尺寸（mm）": "总高:78.1 瓶高:69.3 长*宽:47*20",
+        "供应商": "广州永益有限公司",
+        "模穴数": "1*2",
+        "产能": "",
+        "产品图": "",
+        "__EMPTY": ""
+      },
+      "images": [],
+      "imageKind": "path",
+      "created_at": "2026-11-12T05:26:18.740Z",
+      "updated_at": "2026-11-12T05:26:18.740Z"
+    },
+    {
+      "id": 18,
+      "data": {
+        "品类": "精华液瓶",
+        "容量": "90ML",
+        "材质类型": "塑料",
+        "材质信息": "瓶身：PETG\n",
+        "尺寸（mm）": "总高:136.7 瓶高:96.3 直径:46.8",
+        "供应商": "广州永益有限公司",
+        "模穴数": "1*4",
+        "产能": "",
+        "产品图": "",
+        "__EMPTY": ""
+      },
+      "images": [
+        "images/18091513252d2179.png",
+        "images/b117c0306d4a1db2.png"
+      ],
+      "imageKind": "path",
+      "created_at": "2026-11-12T05:26:22.522Z",
+      "updated_at": "2026-11-12T05:26:22.522Z"
     }
   ],
   "config": {
     "columnMapping": {},
     "specialColumns": {}
   },
-  "lastUpdated": "2026-11-11T06:44:43.556Z",
+  "lastUpdated": "2026-11-12T05:26:22.522Z",
   "version": 3,
   "imageMode": "files"
 }
